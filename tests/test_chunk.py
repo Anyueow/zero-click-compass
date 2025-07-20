@@ -12,12 +12,12 @@ class TestContentChunker:
         chunker = ContentChunker(target_tokens=100)
         
         page_data = {
-            'url': 'https://example.com',
-            'title': 'Test Page',
-            'description': 'A test page',
-            'text': 'This is a test page with some content. It has multiple sentences. Each sentence should be processed correctly.',
+            'url': 'https://www.avocadogreenmattress.com',
+            'title': 'Avocado Green Mattress',
+            'description': 'Avocado Green Mattress is a sustainable and eco-friendly mattress company that offers a range of mattresses, pillows, and bedding products.',
+            'text': 'Avocado Green Mattress igits a sustainable and eco-friendly mattress company that offers a range of mattresses, pillows, and bedding products.',
             'headings': [{'level': 1, 'text': 'Main Heading'}],
-            'domain': 'example.com'
+            'domain': 'avocadogreenmattress.com'
         }
         
         chunks = chunker.chunk_page(page_data)

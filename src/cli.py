@@ -549,17 +549,22 @@ def pipeline_command(args):
     logger.info("Step 2: Chunking content...")
     if not args.no_semantic:
         chunker = SemanticChunker(
-            chunk_size=args.chunk_size,
-            max_chunks=args.max_chunks,
-            sliding_window=args.sliding_window
+            target_tokens=args.chunk_size,
+            overlap_tokens=args.sliding_window
         )
-        chunks = chunker.chunk_crawled_pages()
+        # Load crawled pages and chunk them
+        crawled_pages = load_jsonl("data/crawled_pages.jsonl")
+        chunks = chunker.chunk_pages(crawled_pages)
+        
+        # Limit chunks to max_chunks
+        if len(chunks) > args.max_chunks:
+            chunks = chunks[:args.max_chunks]
     else:
         chunks = chunk_crawled_pages(use_semantic=False)
-    
-    # Limit chunks to max_chunks
-    if len(chunks) > args.max_chunks:
-        chunks = chunks[:args.max_chunks]
+        
+        # Limit chunks to max_chunks
+        if len(chunks) > args.max_chunks:
+            chunks = chunks[:args.max_chunks]
     
     logger.info(f"Created {len(chunks)} chunks")
     
@@ -571,8 +576,8 @@ def pipeline_command(args):
         sys.exit(1)
     logger.info("Created FAISS index")
     
-    # Step 4: Generate Reverse Queries
-    logger.info("Step 4: Generating reverse queries...")
+    # Step 4: Query Expansion (Generate reverse queries from content)
+    logger.info("Step 4: Generating reverse queries from content...")
     query_generator = ReverseQueryGenerator()
     reverse_queries = query_generator.generate_queries_for_chunks(
         chunks, 
@@ -580,7 +585,7 @@ def pipeline_command(args):
         output_file="data/reverse_queries.jsonl"
     )
     
-    # Get top reverse queries for fan-out
+    # Get top 5 reverse queries for fan-out
     top_reverse_queries = []
     for chunk_result in reverse_queries:
         chunk_queries = chunk_result.get('queries', [])
@@ -594,8 +599,8 @@ def pipeline_command(args):
     
     logger.info(f"Generated {len(reverse_query_texts)} top reverse queries")
     
-    # Step 5: Query Fan-out Expansion
-    logger.info("Step 5: Expanding queries with fan-out...")
+    # Step 5: Analysis and Expansion (Fan-out the reverse queries)
+    logger.info("Step 5: Expanding reverse queries with fan-out...")
     fanout_generator = QueryFanoutGenerator()
     all_fanout_queries = []
     
@@ -607,11 +612,10 @@ def pipeline_command(args):
         )
         all_fanout_queries.extend(fanout_queries)
     
-    # Combine original query expansion with fan-out queries
-    expanded_queries = expand_query_simple(args.query, args.max_expansions)
-    expanded_queries.extend(all_fanout_queries)
+    # Use fan-out queries for search (not original query expansion)
+    expanded_queries = all_fanout_queries
     
-    logger.info(f"Generated {len(expanded_queries)} total expanded queries")
+    logger.info(f"Generated {len(expanded_queries)} fan-out queries from {len(reverse_query_texts)} reverse queries")
     
     # Step 6: Search and Score
     logger.info("Step 6: Searching and scoring...")

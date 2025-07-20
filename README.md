@@ -1,43 +1,47 @@
 # Zero-Click Compass 🧭
 
-**AI-Powered Content Optimization & Channel Strategy Platform** - Optimize your content for the AI-driven, personalized internet of the future.
+**Sequential Content-to-Query Analysis Platform** - Optimize your content for the AI-driven, personalized internet of the future.
 
 ## What & Why
 
-In the AI era, content needs to rank **inside** LLM responses and meet users where they are across multiple platforms. Zero-Click Compass provides comprehensive analysis and optimization for the personalized internet.
+In the AI era, content needs to rank **inside** LLM responses and meet users where they are across multiple platforms. Zero-Click Compass provides a **sequential content-to-query analysis pipeline** that works backwards from your content to discover what queries it answers, then expands those queries for comprehensive optimization.
 
 ### Key Capabilities
 
-- **🔍 Reverse Query Generation**: Discover what queries your content actually answers
-- **🌊 Query Fan-Out**: Expand queries using Google AI Mode methodology
+- **🔄 Content-to-Query Generation**: Discover what queries your content actually answers
+- **🌊 Query Fan-Out Expansion**: Expand reverse queries using AI methodology (max 15 per query)
 - **🧠 XAI Content Optimization**: AI-powered content gap analysis and optimization
 - **📱 Channel Strategy**: Identify where users ask queries and recommend engagement strategies
 - **🎯 Comprehensive Scoring**: Score content against expanded query sets
+- **🏢 Brand Curation**: Industry-specific content strategy and optimization
 - **🤖 Agentic Foundation**: Bottom-up pyramid approach for future AI agent engagement
 
-## 🏗️ Complete System Architecture
+## 🏗️ Sequential System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        ZERO-CLICK COMPASS ECOSYSTEM                        │
+│                    ZERO-CLICK COMPASS SEQUENTIAL PIPELINE                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐        │
 │  │   CONTENT       │    │   QUERY         │    │   ANALYSIS      │        │
 │  │   PIPELINE      │    │   EXPANSION     │    │   & OPTIMIZATION│        │
+│  │   (Step 1-3)    │    │   (Step 4-5)    │    │   (Step 6+)     │        │
 │  │                 │    │                 │    │                 │        │
 │  │ • Web Crawling  │    │ • Reverse Query │    │ • XAI Content   │        │
-│  │ • Chunking      │    │   Generation    │    │   Optimization  │        │
-│  │ • Embedding     │    │ • Query Fan-Out │    │ • Channel       │        │
-│  │ • Indexing      │    │ • Intent Trees  │    │   Analysis      │        │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘        │
-│           │                       │                       │                │
-│           └───────────────────────┼───────────────────────┘                │
+│  │   (max 3 pages) │    │   Generation    │    │   Optimization  │        │
+│  │ • Chunking      │    │   (max 5 per    │    │ • Channel       │        │
+│  │   (max 100)     │    │    chunk)       │    │   Analysis      │        │
+│  │ • Embedding     │    │ • Query Fan-Out │    │ • Brand         │        │
+│  │ • Indexing      │    │   (max 15 per   │    │   Curation      │        │
+│  └─────────────────┘    │    query)       │    └─────────────────┘        │
+│           │             └─────────────────┘                 │                │
+│           └───────────────────────┼─────────────────────────┘                │
 │                                   │                                        │
 │  ┌─────────────────────────────────┼─────────────────────────────────────┐  │
 │  │                    COMPREHENSIVE SCORING ENGINE                      │  │
 │  │                                                                       │  │
-│  │ • Matrix Scoring (Content × Queries)                                 │  │
+│  │ • Matrix Scoring (Content × Fan-out Queries)                         │  │
 │  │ • Composite Relevance (70% Semantic + 30% Token)                     │  │
 │  │ • Gap Analysis & Recommendations                                     │  │
 │  │ • Performance Rankings & Reports                                     │  │
@@ -47,6 +51,7 @@ In the AI era, content needs to rank **inside** LLM responses and meet users whe
 │  │                    STRATEGY & ENGAGEMENT LAYER                       │  │
 │  │                                                                       │  │
 │  │ • Platform-Specific Strategies (Reddit, X, Google, Yelp, Quora)      │  │
+│  │ • Industry-Specific Brand Curation                                   │  │
 │  │ • Content Adaptation Guidelines                                      │  │
 │  │ • Implementation Roadmaps                                            │  │
 │  │ • Future Agentic Engagement Foundation                               │  │
@@ -54,38 +59,24 @@ In the AI era, content needs to rank **inside** LLM responses and meet users whe
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 🔄 Complete Workflow Flowchart
+## 🔄 Sequential Workflow Flowchart
 
 ```mermaid
 graph TD
-    A[Start: Website URL + Topic] --> B[Step 1: Web Crawling]
-    B --> C[Step 2: Content Chunking]
-    C --> D[Step 3: Embedding & Indexing]
-    D --> E[Step 4: Query Expansion]
-    
-    E --> F{Optional: Reverse Queries?}
-    F -->|Yes| G[Step 5: Generate Queries from Content]
-    F -->|No| H[Step 6: Query Fan-Out]
-    G --> H
-    
-    H --> I[Step 7: Comprehensive Scoring]
-    I --> J[Step 8: Social Media Analysis]
-    
-    J --> K{Optional: XAI Optimization?}
-    K -->|Yes| L[Step 9: XAI Content Optimization]
-    K -->|No| M{Optional: Channel Analysis?}
-    L --> M
-    
-    M -->|Yes| N[Step 10: Channel Analysis & Strategy]
-    M -->|No| O[Step 11: Generate Reports]
-    N --> O
-    
-    O --> P[Final Results & Recommendations]
+    A[Start: Website URL + Topic] --> B[Step 1: Web Crawling<br/>Max 3 pages]
+    B --> C[Step 2: Content Chunking<br/>Max 100 chunks<br/>200 tokens + 100 overlap]
+    C --> D[Step 3: Embedding & Indexing<br/>FAISS vector index]
+    D --> E[Step 4: Reverse Query Generation<br/>Max 5 queries per chunk]
+    E --> F[Step 5: Select Top 5 Reverse Queries<br/>Most relevant queries]
+    F --> G[Step 6: Query Fan-Out Expansion<br/>Max 15 per reverse query<br/>Total: 75 fan-out queries]
+    G --> H[Step 7: Comprehensive Scoring<br/>Content vs Fan-out queries]
+    H --> I[Step 8: Analysis & Optimization<br/>XAI, Channel, Brand]
+    I --> J[Final Results & Recommendations]
     
     style A fill:#e1f5fe
-    style P fill:#c8e6c9
-    style L fill:#fff3e0
-    style N fill:#f3e5f5
+    style J fill:#c8e6c9
+    style F fill:#fff3e0
+    style G fill:#f3e5f5
 ```
 
 ## 🚀 Quick Start
@@ -97,8 +88,8 @@ git clone <repository-url>
 cd zero-click-compass
 
 # Create environment
-conda create -n zero-click python=3.9
-conda activate zero-click
+conda create -n MLHW python=3.9
+conda activate MLHW
 
 # Install dependencies
 pip install -r requirements.txt
@@ -106,280 +97,237 @@ pip install -r requirements.txt
 
 ### 2. Environment Setup
 ```bash
-# Copy environment template
-cp env.template .env
+# Create .env file
+cp .env.example .env
 
-# Edit .env with your API keys
-GOOGLE_API_KEY=your_gemini_api_key
-REDDIT_CLIENT_ID=your_reddit_client_id
-REDDIT_CLIENT_SECRET=your_reddit_secret
-TWITTER_BEARER_TOKEN=your_twitter_token
+# Add your Google Gemini API key
+echo "GOOGLE_API_KEY=your_api_key_here" >> .env
 ```
 
-### 3. Run Complete Pipeline
-```bash
-# Full pipeline with all features
-python -m src.cli pipeline https://your-site.com "your topic" \
-  --reverse-queries \
-  --fanout-queries "content marketing" "SEO strategies" \
-  --fanout-mode "AI Mode (complex)" \
-  --comprehensive-scoring \
-  --xai-optimize \
-  --channel-analyze
-```
+### 3. Run Sequential Pipeline
 
-### 4. Run Dashboard
+#### Streamlit Interface (Recommended)
 ```bash
 streamlit run app.py
 ```
+Navigate to `http://localhost:8501` and use the **Complete Sequential Pipeline** tab.
 
-## 📋 Available Commands
-
-### Individual Commands
+#### Command Line Interface
 ```bash
-# Content Pipeline
-python -m src.cli crawl https://example.com --max-pages 50
-python -m src.cli chunk
+# Basic sequential pipeline
+python -m src.cli pipeline https://example.com "your topic"
+
+# With custom limits
+python -m src.cli pipeline https://example.com "your topic" \
+  --max-pages 3 \
+  --max-chunks 100 \
+  --chunk-size 200 \
+  --sliding-window 100 \
+  --max-reverse-queries 5 \
+  --max-fanout-per-query 15
+```
+
+## 📊 Sequential Pipeline Configuration
+
+### Default Limits (Optimized for Performance)
+- **Max Pages**: 3 pages
+- **Max Chunks**: 100 chunks
+- **Chunk Size**: 200 tokens
+- **Sliding Window**: 100 tokens overlap
+- **Reverse Queries**: 5 per chunk
+- **Fan-out Queries**: 15 per reverse query
+- **Total Fan-out**: Up to 75 queries (5 × 15)
+
+### Pipeline Steps
+
+#### **Step 1-3: Content Pipeline**
+1. **Web Crawling**: Crawl up to 3 pages from your website
+2. **Content Chunking**: Split content into max 100 semantic chunks
+3. **Embedding & Indexing**: Create FAISS vector index for similarity search
+
+#### **Step 4-5: Query Expansion**
+4. **Reverse Query Generation**: Generate up to 5 queries per content chunk
+5. **Query Fan-Out**: Expand top 5 reverse queries (15 each = 75 total)
+
+#### **Step 6+: Analysis & Optimization**
+6. **Comprehensive Scoring**: Score content against 75 fan-out queries
+7. **XAI Optimization**: AI-powered content gap analysis
+8. **Channel Analysis**: Platform-specific engagement strategies
+9. **Brand Curation**: Industry-specific recommendations
+
+## 🏢 Brand Curation Features
+
+### Industry-Specific Strategies
+- **B2B SaaS**: ROI-driven content, technical depth, thought leadership
+- **E-commerce**: Visual content, product guides, shopping optimization
+- **Healthcare**: Educational content, patient resources, compliance
+- **Finance**: Data-driven insights, regulatory compliance, trust-building
+- **Education**: Learning outcomes, interactive content, student success
+
+### Brand Stage Optimization
+- **Startup**: Brand awareness, market validation, problem-solution content
+- **Growth**: Lead generation, case studies, customer success stories
+- **Established**: Thought leadership, industry reports, market dominance
+- **Enterprise**: Innovation insights, executive thought leadership
+
+### Channel-Specific Tactics
+- **LinkedIn**: Professional insights, industry analysis, B2B networking
+- **Google**: SEO optimization, comprehensive guides, featured snippets
+- **Reddit**: Community discussions, authentic engagement, problem-solving
+- **Quora**: Expert positioning, detailed explanations, authority building
+
+## 🛠️ Available Commands
+
+### Core Pipeline Commands
+```bash
+# Complete sequential pipeline
+python -m src.cli pipeline <url> <query>
+
+# Individual steps
+python -m src.cli crawl <url> --max-pages 3
+python -m src.cli chunk --max-chunks 100
 python -m src.cli embed
-
-# Query Analysis
-python -m src.cli reverse --analyze --target-queries "marketing tips" "SEO guide"
-python -m src.cli fanout --queries "content marketing" "SEO strategies" --mode "AI Mode (complex)" --analyze
-
-# Scoring & Analysis
-python -m src.cli comprehensive --top-k 15
-python -m src.cli xai-optimize --analyze --target-queries "best mattress" "sleep quality"
-python -m src.cli channel-analyze --generate-strategy
-
-# Social Media
-python -m src.cli social "SEO best practices" --analyze
 ```
 
-### Pipeline Options
+### Analysis Commands
 ```bash
-# Basic pipeline
-python -m src.cli pipeline https://example.com "marketing strategies"
+# Reverse query generation
+python -m src.cli reverse --analyze
 
-# With reverse queries
-python -m src.cli pipeline https://example.com "marketing strategies" --reverse-queries
+# Query fan-out expansion
+python -m src.cli fanout --queries "query1" "query2" --mode "AI Overview (simple)"
 
-# With query fan-out
-python -m src.cli pipeline https://example.com "marketing strategies" \
-  --fanout-queries "content marketing" "SEO strategies" \
-  --fanout-mode "AI Mode (complex)"
+# Comprehensive scoring
+python -m src.cli comprehensive --top-k 15
 
-# With comprehensive scoring
-python -m src.cli pipeline https://example.com "marketing strategies" \
-  --comprehensive-scoring
+# XAI content optimization
+python -m src.cli xai-optimize --analyze
 
-# With XAI optimization
-python -m src.cli pipeline https://example.com "marketing strategies" \
-  --xai-optimize
-
-# With channel analysis
-python -m src.cli pipeline https://example.com "marketing strategies" \
-  --channel-analyze
-
-# Complete pipeline with all features
-python -m src.cli pipeline https://example.com "marketing strategies" \
-  --reverse-queries \
-  --fanout-queries "content marketing" "SEO strategies" \
-  --fanout-mode "AI Mode (complex)" \
-  --comprehensive-scoring \
-  --xai-optimize \
-  --channel-analyze
+# Channel analysis
+python -m src.cli channel-analyze --generate-strategy
 ```
 
-## 📊 Output Files
+### Search & Analysis
+```bash
+# Search existing index
+python -m src.cli search "your query"
+
+# Social media analysis
+python -m src.cli social "your topic" --analyze
+
+# Query expansion
+python -m src.cli expand "your query" --max-expansions 15
+```
+
+## 📈 Output Files
 
 ### Core Pipeline Outputs
-- `data/chunks.jsonl` - Semantic content chunks
-- `data/faiss_index.faiss` - Vector search index
-- `data/visibility.csv` - Content performance rankings
+- `data/crawled_pages.jsonl`: Raw crawled content
+- `data/chunks.jsonl`: Semantic content chunks
+- `data/faiss_index.faiss`: Vector similarity index
+- `data/reverse_queries.jsonl`: Generated reverse queries
+- `data/query_fanout.jsonl`: Fan-out expanded queries
 
-### Query Analysis Outputs
-- `data/generated_queries.jsonl` - Reverse-generated queries
-- `data/query_fanout.jsonl` - Expanded fan-out queries
-- `data/comprehensive_top_results.csv` - Top scoring content
-- `data/comprehensive_all_scores.csv` - All chunk-query scores
+### Analysis Outputs
+- `data/comprehensive_scores.jsonl`: Content-query scoring matrix
+- `data/xai_optimization.jsonl`: XAI optimization recommendations
+- `data/channel_analysis.jsonl`: Channel strategy analysis
+- `visibility.csv`: Content visibility report
+- `channels.json`: Platform-specific engagement data
 
-### Optimization Outputs
-- `data/xai_optimization.jsonl` - XAI content optimization analysis
-- `data/channel_analysis.jsonl` - Channel distribution analysis
-- `data/channel_analysis_strategy.json` - Comprehensive engagement strategy
+## 🎯 Use Cases & Examples
 
-### Social Media Outputs
-- `data/channels.json` - Social media influencer analysis
-- `data/social_impact.json` - Social media impact metrics
-
-## 🧠 XAI Content Optimization
-
-The XAI system provides 5-part analysis for each content piece:
-
-1. **Content Coverage Analysis**: What aspects are well-covered
-2. **Content Gap Analysis**: What's missing or underdeveloped
-3. **AI Visibility Optimization**: How to answer more sub-queries
-4. **Query Expansion Opportunities**: Related queries to address
-5. **Content Structure Recommendations**: How to reorganize for better AI comprehension
-
-### Example XAI Output
-```
-=== XAI Optimization Results ===
-Chunks optimized: 25
-Queries analyzed: 150
-
-Top Content Gaps:
-  • Common pattern: missing (mentioned in 18/25 chunks)
-  • Common pattern: expand (mentioned in 15/25 chunks)
-  • Common pattern: improve (mentioned in 12/25 chunks)
-```
-
-## 📱 Channel Strategy & Engagement
-
-The channel analysis system identifies where users ask specific queries and provides platform-specific strategies:
-
-### Supported Platforms
-- **Reddit**: Community participation, detailed posts and comments
-- **X/Twitter**: Conversation participation, threads and replies
-- **Google**: SEO optimization, comprehensive articles
-- **Yelp**: Review responses, professional engagement
-- **Quora**: Expert answers, detailed responses
-- **LinkedIn**: Professional networking, industry insights
-
-### Example Channel Strategy Output
-```
-=== Channel Strategy ===
-Total queries analyzed: 150
-
-Channel Distribution:
-  REDDIT: 45 queries
-  TWITTER: 38 queries
-  GOOGLE: 32 queries
-  QUORA: 25 queries
-
-Top Implementation Priorities:
-  1. REDDIT (Score: 45, Focus: high)
-  2. TWITTER (Score: 38, Focus: high)
-  3. GOOGLE (Score: 32, Focus: medium)
-```
-
-## 🏗️ SOLID Architecture
-
-The system follows SOLID principles throughout:
-
-- **Single Responsibility**: Each class has one job
-- **Open/Closed**: Extensible without modification
-- **Liskov Substitution**: Interfaces are interchangeable
-- **Interface Segregation**: Small, focused interfaces
-- **Dependency Inversion**: Depend on abstractions, not concretions
-
-### Core Modules
-```
-src/
-├── crawl.py              # Web scraping with Selenium
-├── chunk.py              # Semantic chunking with tiktoken
-├── embed.py              # Gemini embeddings + FAISS indexing
-├── expand.py             # Query expansion & intent trees
-├── score.py              # Multi-method relevance scoring
-├── channels.py           # Social media analysis
-├── query_generator.py    # Reverse query generation
-├── query_fanout.py       # Query fan-out expansion
-├── comprehensive_scorer.py # Comprehensive content scoring
-├── xai_optimizer.py      # XAI content optimization
-├── channel_analyzer.py   # Channel analysis & strategy
-└── cli.py                # Pipeline orchestration
-```
-
-## 🎯 Use Cases
-
-### 1. Content Audit & Optimization
-- Discover what queries your content actually answers
-- Identify content gaps and optimization opportunities
-- Optimize for AI visibility and comprehension
-
-### 2. Channel Strategy Development
-- Understand where your target audience asks questions
-- Develop platform-specific engagement strategies
-- Plan content adaptation for different channels
-
-### 3. Competitive Analysis
-- Analyze competitor content performance
-- Identify market gaps and opportunities
-- Benchmark against industry standards
-
-### 4. SEO & AI Optimization
-- Optimize for both traditional SEO and AI-driven search
-- Improve content structure for better AI comprehension
-- Enhance query coverage and relevance
-
-### 5. Future-Proofing
-- Prepare for agentic engagement with AI agents
-- Build foundation for personalized internet interactions
-- Develop automated response and engagement systems
-
-## 🔮 Future Agentic Engagement
-
-The system provides a bottom-up pyramid approach for future AI agent engagement:
-
-### Layer 1: Analysis Foundation
-- Content optimization analysis
-- Channel distribution analysis
-- Query-user behavior mapping
-
-### Layer 2: Strategy Generation
-- Platform-specific strategies
-- Content adaptation guidelines
-- Engagement tactics
-
-### Layer 3: Implementation Planning
-- Priority-based implementation
-- Resource allocation
-- Timeline planning
-
-### Layer 4: Future Agentic Engagement (Ready for Implementation)
-- Automated response systems
-- AI agent engagement
-- Personalized user interactions
-
-## 🧪 Testing
-
+### Content Audit
 ```bash
-# Run all tests
-python run_tests.py
-
-# Run specific test modules
-python -m pytest tests/test_crawl.py
-python -m pytest tests/test_optimization.py
+# Analyze existing content coverage
+python -m src.cli pipeline https://your-site.com "content marketing" \
+  --max-pages 3 --max-chunks 100
 ```
 
-## 📈 Performance Metrics
+### Competitive Analysis
+```bash
+# Analyze competitor content strategy
+python -m src.cli pipeline https://competitor.com "SEO strategies" \
+  --max-pages 3 --max-chunks 100
+```
 
-The system provides comprehensive performance metrics:
+### Brand Optimization
+```bash
+# Industry-specific brand analysis
+python -m src.cli pipeline https://your-brand.com "B2B SaaS marketing" \
+  --max-pages 3 --max-chunks 100
+```
 
-- **Content Coverage**: Percentage of target queries answered
-- **AI Visibility Score**: How well content is optimized for AI comprehension
-- **Channel Distribution**: Where users ask relevant queries
-- **Engagement Potential**: Platform-specific engagement opportunities
-- **Optimization Priority**: Prioritized improvement recommendations
+### Channel Strategy
+```bash
+# Platform-specific engagement analysis
+python -m src.cli channel-analyze --generate-strategy
+```
+
+## 🔧 Configuration Options
+
+### Streamlit Interface
+- **Sequential Pipeline Settings**: All limits configurable via sliders
+- **Brand Curation**: Industry, stage, audience, goals selection
+- **Analysis Options**: Toggle different analysis types
+- **Real-time Progress**: Step-by-step progress tracking
+
+### CLI Configuration
+```bash
+# Pipeline limits
+--max-pages 3              # Maximum pages to crawl
+--max-chunks 100           # Maximum content chunks
+--chunk-size 200           # Chunk size in tokens
+--sliding-window 100       # Overlap between chunks
+
+# Query generation limits
+--max-reverse-queries 5    # Reverse queries per chunk
+--max-fanout-per-query 15  # Fan-out queries per reverse query
+
+# Analysis options
+--comprehensive-scoring    # Run comprehensive scoring
+--xai-optimize            # Run XAI optimization
+--channel-analyze         # Run channel analysis
+```
+
+## 🏗️ Architecture Principles
+
+### SOLID Design
+- **Single Responsibility**: Each module has one clear purpose
+- **Open/Closed**: Extensible without modification
+- **Liskov Substitution**: Interchangeable implementations
+- **Interface Segregation**: Focused, specific interfaces
+- **Dependency Inversion**: High-level modules independent of low-level details
+
+### Sequential Processing
+- **Content-First**: All analysis starts with content chunks
+- **Query-Driven**: Reverse queries drive fan-out expansion
+- **Linear Flow**: Each step depends on previous step completion
+- **Controlled Scale**: Configurable limits prevent resource overload
+
+### Future-Ready
+- **Agentic Foundation**: Bottom-up pyramid for AI agent engagement
+- **Modular Design**: Easy to add new analysis types
+- **API-Ready**: Structured for future API deployment
+- **Scalable**: Designed for enterprise-scale deployment
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests
+3. Follow SOLID principles
+4. Add tests for new functionality
 5. Submit a pull request
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+MIT License - see LICENSE file for details
 
 ## 🆘 Support
 
-For issues and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the examples in the `examples/` directory
+- **Documentation**: See `BRAND_CURATION_GUIDE.md` for detailed usage
+- **Issues**: Report bugs and feature requests via GitHub Issues
+- **Discussions**: Join community discussions for best practices
 
 ---
 

@@ -66,7 +66,7 @@ def main():
     
     # Header
     st.markdown('<h1 class="main-header">🧭 Zero-Click Compass</h1>', unsafe_allow_html=True)
-    st.markdown("### LLM-First Website Performance Analysis")
+    st.markdown("### Sequential Content-to-Query Analysis Pipeline")
     
     # Sidebar
     st.sidebar.title("Configuration")
@@ -94,7 +94,7 @@ def main():
             st.sidebar.error("Google API key is required to run the pipeline")
     
     # Pipeline configuration
-    st.sidebar.subheader("Pipeline Settings")
+    st.sidebar.subheader("Sequential Pipeline Settings")
     max_pages = st.sidebar.slider("Max Pages to Crawl", 1, 10, 3)
     chunk_size = st.sidebar.slider("Chunk Size (tokens)", 100, 500, 200)
     max_chunks = st.sidebar.slider("Max Chunks", 50, 200, 100)
@@ -105,7 +105,7 @@ def main():
     top_k = st.sidebar.slider("Top K Results", 5, 20, 10)
     
     # Main tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🚀 Pipeline", "📊 Analysis", "🔍 Search", "📱 Social", "🔄 Reverse Queries", "🏢 Brand Curation"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🚀 Complete Pipeline", "📊 Analysis", "🔍 Search", "📱 Social", "🔄 Reverse Queries", "🏢 Brand Curation"])
     
     with tab1:
         pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_queries, max_fanout_per_query, max_expansions, top_k)
@@ -127,7 +127,7 @@ def main():
 
 def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_queries, max_fanout_per_query, max_expansions, top_k):
     """Pipeline execution tab."""
-    st.header("🚀 Run Complete Pipeline")
+    st.header("🚀 Complete Sequential Pipeline")
     
     col1, col2 = st.columns(2)
     
@@ -139,7 +139,7 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
         include_social = st.checkbox("Include Social Media Analysis", value=False)
         use_semantic = st.checkbox("Use Semantic Chunking", value=True)
     
-    if st.button("🚀 Run Pipeline", type="primary"):
+    if st.button("🚀 Run Sequential Pipeline", type="primary"):
         if not url or not query:
             st.error("Please provide both URL and query")
             return
@@ -148,8 +148,8 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
             st.error("Please provide Google Gemini API key")
             return
         
-        # Run pipeline with progress tracking
-        with st.spinner("Running pipeline..."):
+        # Run sequential pipeline with progress tracking
+        with st.spinner("Running sequential pipeline..."):
             progress_bar = st.progress(0)
             status_text = st.empty()
             
@@ -171,17 +171,23 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                 # Use semantic chunking with new parameters
                 if use_semantic:
                     chunker = SemanticChunker(
-                        chunk_size=chunk_size,
-                        max_chunks=max_chunks,
-                        sliding_window=sliding_window
+                        target_tokens=chunk_size,
+                        overlap_tokens=sliding_window
                     )
-                    chunks = chunker.chunk_crawled_pages()
+                    # Load crawled pages and chunk them
+                    from .utils import load_jsonl
+                    crawled_pages = load_jsonl("data/crawled_pages.jsonl")
+                    chunks = chunker.chunk_pages(crawled_pages)
+                    
+                    # Limit chunks to max_chunks
+                    if len(chunks) > max_chunks:
+                        chunks = chunks[:max_chunks]
                 else:
                     chunks = chunk_crawled_pages(use_semantic=False)
-                
-                # Limit chunks to max_chunks
-                if len(chunks) > max_chunks:
-                    chunks = chunks[:max_chunks]
+                    
+                    # Limit chunks to max_chunks
+                    if len(chunks) > max_chunks:
+                        chunks = chunks[:max_chunks]
                 
                 st.success(f"✅ Created {len(chunks)} chunks")
                 
@@ -196,9 +202,9 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                 
                 st.success("✅ Created FAISS index")
                 
-                # Step 4: Generate Reverse Queries
-                status_text.text("Step 4/7: Generating reverse queries...")
-                progress_bar.progress(57)
+                # Step 4: Query Expansion (Generate reverse queries from content)
+                status_text.text("Step 4/6: Generating reverse queries from content...")
+                progress_bar.progress(66)
                 
                 query_generator = ReverseQueryGenerator()
                 reverse_queries = query_generator.generate_queries_for_chunks(
@@ -207,7 +213,7 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                     output_file="data/reverse_queries.jsonl"
                 )
                 
-                # Get top reverse queries for fan-out
+                # Get top 5 reverse queries for fan-out
                 top_reverse_queries = []
                 for chunk_result in reverse_queries:
                     chunk_queries = chunk_result.get('queries', [])
@@ -221,11 +227,11 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                 
                 st.success(f"✅ Generated {len(reverse_query_texts)} top reverse queries")
                 
-                # Step 5: Query Fan-out Expansion
-                status_text.text("Step 5/7: Expanding queries with fan-out...")
-                progress_bar.progress(71)
+                # Step 5: Analysis and Expansion (Fan-out the reverse queries)
+                status_text.text("Step 5/6: Expanding reverse queries with fan-out...")
+                progress_bar.progress(83)
                 
-                # Use reverse queries for fan-out expansion
+                # Fan-out each of the 5 reverse queries (max 15 each)
                 fanout_generator = QueryFanoutGenerator()
                 all_fanout_queries = []
                 
@@ -237,15 +243,14 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                     )
                     all_fanout_queries.extend(fanout_queries)
                 
-                # Combine original query expansion with fan-out queries
-                expanded_queries = expand_query_simple(query, max_expansions)
-                expanded_queries.extend(all_fanout_queries)
+                # Use fan-out queries for search (not original query expansion)
+                expanded_queries = all_fanout_queries
                 
-                st.success(f"✅ Generated {len(expanded_queries)} total expanded queries")
+                st.success(f"✅ Generated {len(expanded_queries)} fan-out queries from {len(reverse_query_texts)} reverse queries")
                 
                 # Step 6: Search and Score
-                status_text.text("Step 6/7: Searching and scoring...")
-                progress_bar.progress(85)
+                status_text.text("Step 6/6: Searching and scoring...")
+                progress_bar.progress(100)
                 
                 all_results = []
                 for expanded_query in expanded_queries:
@@ -266,18 +271,8 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
                 
                 st.success(f"✅ Found {len(top_results)} top results")
                 
-                # Step 7: Social Media (optional)
-                if include_social:
-                    status_text.text("Step 7/7: Analyzing social media...")
-                    progress_bar.progress(100)
-                    
-                    social_data = gather_social_chatter(query)
-                    analysis = analyze_social_impact(social_data)
-                    
-                    st.success(f"✅ Found {analysis['total_content']} social media mentions")
-                
                 progress_bar.progress(100)
-                status_text.text("Pipeline completed!")
+                status_text.text("Sequential pipeline completed!")
                 
                 # Display results
                 display_pipeline_results(query, expanded_queries, top_results, social_data if include_social else None)
@@ -288,7 +283,7 @@ def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_
 
 def display_pipeline_results(query, expanded_queries, top_results, social_data):
     """Display pipeline results."""
-    st.header("📊 Pipeline Results")
+    st.header("📊 Sequential Pipeline Results")
     
     # Metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -310,12 +305,12 @@ def display_pipeline_results(query, expanded_queries, top_results, social_data):
             st.metric("Social Mentions", "N/A")
     
     # Expanded queries
-    st.subheader("🔍 Expanded Queries")
+    st.subheader("🔍 Fan-out Queries (from Reverse Queries)")
     for i, expanded_query in enumerate(expanded_queries, 1):
         st.write(f"{i}. {expanded_query}")
     
     # Top results
-    st.subheader("🏆 Top Results")
+    st.subheader("🏆 Top Content Matches")
     for i, result in enumerate(top_results, 1):
         with st.expander(f"{i}. Score: {result['similarity_score']:.3f} - {result['url']}"):
             st.write(f"**URL:** {result['url']}")
@@ -341,7 +336,7 @@ def display_pipeline_results(query, expanded_queries, top_results, social_data):
 
 def analysis_tab():
     """Analysis tab for viewing existing data."""
-    st.header("📊 Content Analysis")
+    st.header("📊 Content Analysis Dashboard")
     
     data_dir = create_data_dir()
     
@@ -433,7 +428,7 @@ def analysis_tab():
 
 def search_tab(top_k):
     """Search tab for querying existing index."""
-    st.header("🔍 Search Content")
+    st.header("🔍 Content Search")
     
     # Check for existing index
     data_dir = create_data_dir()
@@ -489,7 +484,7 @@ def search_tab(top_k):
 
 def social_tab():
     """Social media analysis tab."""
-    st.header("📱 Social Media Analysis")
+    st.header("📱 Social Media Analysis Dashboard")
     
     query = st.text_input("Social Media Query", placeholder="Enter query to search social media...")
     
@@ -612,7 +607,7 @@ def display_social_results(social_data, analysis):
 
 def reverse_queries_tab():
     """Reverse query generation tab."""
-    st.markdown("### 🔄 Reverse Query Generation")
+    st.markdown("### 🔄 Content-to-Query Generation")
     st.markdown("**Work backwards from your content to discover what queries it answers**")
     
     # Check if chunks exist
@@ -632,7 +627,7 @@ def reverse_queries_tab():
     
     # Reverse query generation form
     with st.form("reverse_form"):
-        st.subheader("Generate Queries from Content")
+        st.subheader("Generate Queries from Content Chunks")
         
         # Options
         query_types = st.multiselect(
@@ -649,7 +644,7 @@ def reverse_queries_tab():
         
         analyze_results = st.checkbox("Analyze results and provide recommendations", value=True)
         
-        generate_submitted = st.form_submit_button("Generate Reverse Queries")
+        generate_submitted = st.form_submit_button("Generate Content Queries")
     
     if generate_submitted:
         if not os.getenv("GOOGLE_API_KEY"):
@@ -681,7 +676,7 @@ def reverse_queries_tab():
                     st.metric("Avg Queries/Chunk", f"{summary['average_queries_per_chunk']:.1f}")
                 
                 # Show sample queries
-                st.subheader("Sample Generated Queries")
+                st.subheader("Sample Content Queries")
                 all_queries = []
                 for chunk_result in generated_queries:
                     all_queries.extend(chunk_result.get('queries', []))
@@ -699,7 +694,7 @@ def reverse_queries_tab():
                 
                 # Analyze if requested
                 if analyze_results:
-                    st.subheader("📊 Analysis & Recommendations")
+                    st.subheader("📊 Content Query Analysis & Recommendations")
                     
                     analyzer = QueryAnalyzer()
                     
@@ -723,7 +718,7 @@ def reverse_queries_tab():
                     if target_queries:
                         target_list = [q.strip() for q in target_queries.split('\n') if q.strip()]
                         if target_list:
-                            st.subheader("🎯 Content Gap Analysis")
+                            st.subheader("🎯 Content Coverage Gap Analysis")
                             gap_analysis = analyzer.find_content_gaps(generated_queries, target_list)
                             
                             if gap_analysis['gap_count'] > 0:
@@ -734,7 +729,7 @@ def reverse_queries_tab():
                                 st.success("✅ All target queries are covered by your content!")
                     
                     # Optimization recommendations
-                    st.subheader("💡 Content Optimization Recommendations")
+                    st.subheader("💡 Content Strategy Recommendations")
                     optimization = analyzer.optimize_content_strategy(generated_queries)
                     
                     if optimization['recommendations']:
@@ -745,24 +740,24 @@ def reverse_queries_tab():
                         st.success("✅ Your content strategy looks well-balanced!")
                 
                 # Download results
-                st.subheader("📥 Download Results")
+                st.subheader("📥 Download Content Query Results")
                 if os.path.exists(output_file):
                     with open(output_file, 'r') as f:
                         st.download_button(
-                            label="Download Generated Queries (JSONL)",
+                            label="Download Content Queries (JSONL)",
                             data=f.read(),
                             file_name="generated_queries.jsonl",
                             mime="application/json"
                         )
                 
             except Exception as e:
-                st.error(f"Error generating reverse queries: {e}")
+                st.error(f"Error generating content queries: {e}")
                 st.exception(e)
 
 def brand_curation_tab():
     """Brand-specific curation and optimization tab."""
-    st.header("🏢 Brand Curation & Optimization")
-    st.markdown("### AI-Powered Content Strategy for Brands")
+    st.header("🏢 Brand Content Strategy")
+    st.markdown("### AI-Powered Sequential Content Strategy for Brands")
     
     # Brand Information
     st.subheader("🎯 Brand Profile")
@@ -794,7 +789,7 @@ def brand_curation_tab():
         )
     
     # Query Strategy
-    st.subheader("🔍 Query Strategy")
+    st.subheader("🔍 Sequential Query Strategy")
     
     strategy_type = st.selectbox(
         "Analysis Strategy",
@@ -866,7 +861,7 @@ def brand_curation_tab():
             selected_queries.extend(custom_list)
     
     # Analysis Options
-    st.subheader("📊 Analysis Options")
+    st.subheader("📊 Sequential Analysis Options")
     
     col1, col2 = st.columns(2)
     
@@ -930,7 +925,7 @@ def brand_curation_tab():
                 st.write(f"• {content_type}")
     
     # Run Analysis
-    st.subheader("🚀 Run Brand Analysis")
+    st.subheader("🚀 Run Sequential Brand Analysis")
     
     if st.button("🏢 Run Brand Curation Analysis", type="primary"):
         if not selected_queries:
@@ -942,10 +937,10 @@ def brand_curation_tab():
             return
         
         # Run brand-specific analysis
-        with st.spinner("Running brand curation analysis..."):
+        with st.spinner("Running sequential brand analysis..."):
             try:
                 # This would integrate with the existing CLI commands
-                st.info("Brand analysis would run the following:")
+                st.info("Sequential brand analysis would run the following:")
                 
                 analysis_steps = []
                 if include_reverse_queries:
@@ -965,10 +960,10 @@ def brand_curation_tab():
                     st.write(f"• {step}")
                 
                 # Show brand-specific recommendations
-                st.success("✅ Brand analysis completed!")
+                st.success("✅ Sequential brand analysis completed!")
                 
                 # Display brand insights
-                st.subheader("🏢 Brand Insights")
+                st.subheader("🏢 Sequential Brand Insights")
                 
                 col1, col2 = st.columns(2)
                 
@@ -983,7 +978,7 @@ def brand_curation_tab():
                     st.metric("Selected Queries", len(selected_queries))
                 
                 # Brand-specific recommendations
-                st.subheader("💡 Brand-Specific Recommendations")
+                st.subheader("💡 Sequential Brand Recommendations")
                 
                 recommendations = [
                     f"**Content Strategy:** Focus on {', '.join(content_goals[:2])} content for {industry}",
@@ -997,7 +992,7 @@ def brand_curation_tab():
                     st.info(rec)
                 
             except Exception as e:
-                st.error(f"Error running brand analysis: {e}")
+                st.error(f"Error running sequential brand analysis: {e}")
                 st.exception(e)
 
 if __name__ == "__main__":
