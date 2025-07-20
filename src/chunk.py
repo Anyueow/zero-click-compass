@@ -13,7 +13,7 @@ class ContentChunker:
         self.overlap_tokens = overlap_tokens
         self.tokenizer = Tokenizer()
     
-    def chunk_page(self, page_data: Dict) -> List[Dict]:
+    def chunk_page(self, page_data: Dict, max_chunks_per_page: int = 5) -> List[Dict]:
         """Chunk a single page into multiple chunks."""
         chunks = []
         
@@ -49,6 +49,11 @@ class ContentChunker:
             chunk['page_title'] = title
             chunk['page_description'] = description
             chunk['crawled_at'] = page_data.get('crawled_at', 0)
+        
+        # Limit chunks to max_chunks_per_page
+        if len(chunks) > max_chunks_per_page:
+            chunks = chunks[:max_chunks_per_page]
+            logger.info(f"Limited chunks to {max_chunks_per_page} for {page_data['url']}")
         
         return chunks
     
@@ -134,13 +139,13 @@ class ContentChunker:
             'chunk_id': chunk_id
         }
     
-    def chunk_pages(self, pages: List[Dict]) -> List[Dict]:
+    def chunk_pages(self, pages: List[Dict], max_chunks_per_page: int = 5) -> List[Dict]:
         """Chunk multiple pages."""
         all_chunks = []
         
         for page in pages:
             try:
-                page_chunks = self.chunk_page(page)
+                page_chunks = self.chunk_page(page, max_chunks_per_page)
                 all_chunks.extend(page_chunks)
                 logger.info(f"Created {len(page_chunks)} chunks for {page['url']}")
             except Exception as e:

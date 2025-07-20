@@ -1,1 +1,0 @@
-# Tests for zero-click-compass 

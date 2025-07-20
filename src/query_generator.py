@@ -51,23 +51,40 @@ class ReverseQueryGenerator:
         context = f"""
         Content Title: {title}
         Content URL: {url}
-        Content Text: {content[:2000]}  # Limit for API
-        
-        Task: Generate queries that this content answers. Work backwards from the content to identify what questions/problems this content solves.
-        
-        Generate queries in these categories:
-        1. DIRECT: Exact queries this content directly answers
-        2. RELATED: Related queries that would find this content relevant
-        3. LONG_TAIL: Specific, detailed queries this content addresses
-        4. QUESTIONS: Question-form queries this content answers
-        5. INTENT_BASED: Queries based on user intent (informational, navigational, transactional)
-        
-        For each query, provide:
-        - query_text: The actual search query
-        - category: Which type of query
-        - relevance_score: How directly this content answers (1-10)
-        - intent: What the user is trying to accomplish
-        
+        Content Text: {content[:2000]}  You distill content into the generic user problems it solves, then infer neutral search queries—no brand names unless unavoidable.
+
+        TASK
+        Generate ≥5 queries for each category:
+        DIRECT | RELATED | LONG_TAIL | QUESTIONS | INTENT_BASED
+        Cover funnel intents: informational, comparison, transactional, troubleshooting.
+        Category info: 
+                1. DIRECT: Exact queries this content directly answers
+                2. RELATED: Related queries that would find this content relevant
+                3. LONG_TAIL: Specific, detailed queries this content addresses
+                4. QUESTIONS: Question-form queries this content answers
+                5. INTENT_BASED: Queries based on user intent (informational, navigational, transactional)
+                
+        RULES
+        1. No proper nouns/brands unless essential.
+        2. Think first‑principles: “core need + generic entity”.
+        3. Vary syntax (why / how / vs / cost / buy, etc.); ≤9 words each.
+        4. De‑duplicate across categories.
+        5. Score relevance 1‑10.
+
+        PROCESS
+        • Note core problems (do NOT output).  
+        • Brainstorm brand‑free queries per problem across funnel.  
+        • Return shuffled JSON.
+                For each query, provide:
+                - query_text: The actual search query
+                - category: Which type of query
+                - relevance_score: How directly this content answers (1-10)
+                - intent: What the user is trying to accomplish
+
+        EXAMPLES (guidance, do NOT reuse)
+        • Content: “Guide to reducing SaaS spend in multi‑cloud.” → Query: “cut cloud software costs”, category=QUESTIONS, intent=informational  
+        • Content: “Feature list of Chrome extension time‑tracker.” → Query: “browser time tracker download”, category=LONG_TAIL, intent=transactional
+                
         Return as JSON array of query objects.
         """
         

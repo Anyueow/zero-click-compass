@@ -37,8 +37,13 @@ class EmbeddingGenerator:
             if len(text) > 8000:
                 text = text[:8000]
             
-            result = self.embedding_model.embed_content(text)
-            return result.embedding
+            # Use the embed_content function directly from genai
+            import google.generativeai as genai
+            result = genai.embed_content(
+                model='models/embedding-001',
+                content=text
+            )
+            return result['embedding']
         except Exception as e:
             logger.error(f"Error getting embedding: {e}")
             return None
@@ -132,6 +137,29 @@ class FAISSIndex:
         if 0 <= index < len(self.chunks):
             return self.chunks[index]
         return None
+    
+    def search_similar(self, query: str, k: int = 10) -> List[Dict]:
+        """Search for chunks similar to a query string."""
+        # Get query embedding
+        embedding_generator = EmbeddingGenerator()
+        query_embedding = embedding_generator.get_embedding(query)
+        if not query_embedding:
+            logger.error("Failed to get query embedding")
+            return []
+        
+        # Search using the search method
+        results = self.search(query_embedding, k)
+        
+        # Return chunks with scores
+        similar_chunks = []
+        for index, score in results:
+            chunk = self.get_chunk_by_index(index)
+            if chunk:
+                chunk_copy = chunk.copy()
+                chunk_copy['similarity_score'] = score
+                similar_chunks.append(chunk_copy)
+        
+        return similar_chunks
     
     def save_index(self, filename: str = "faiss_index") -> str:
         """Save FAISS index and chunks to disk."""
