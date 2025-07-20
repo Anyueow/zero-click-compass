@@ -547,7 +547,20 @@ def pipeline_command(args):
     
     # Step 2: Chunk
     logger.info("Step 2: Chunking content...")
-    chunks = chunk_crawled_pages(use_semantic=not args.no_semantic)
+    if not args.no_semantic:
+        chunker = SemanticChunker(
+            chunk_size=args.chunk_size,
+            max_chunks=args.max_chunks,
+            sliding_window=args.sliding_window
+        )
+        chunks = chunker.chunk_crawled_pages()
+    else:
+        chunks = chunk_crawled_pages(use_semantic=False)
+    
+    # Limit chunks to max_chunks
+    if len(chunks) > args.max_chunks:
+        chunks = chunks[:args.max_chunks]
+    
     logger.info(f"Created {len(chunks)} chunks")
     
     # Step 3: Embed and Index
@@ -558,13 +571,50 @@ def pipeline_command(args):
         sys.exit(1)
     logger.info("Created FAISS index")
     
-    # Step 4: Query Expansion
-    logger.info("Step 4: Expanding queries...")
-    expanded_queries = expand_query_simple(args.query, args.max_expansions)
-    logger.info(f"Generated {len(expanded_queries)} expanded queries")
+    # Step 4: Generate Reverse Queries
+    logger.info("Step 4: Generating reverse queries...")
+    query_generator = ReverseQueryGenerator()
+    reverse_queries = query_generator.generate_queries_for_chunks(
+        chunks, 
+        max_queries_per_chunk=args.max_reverse_queries,
+        output_file="data/reverse_queries.jsonl"
+    )
     
-    # Step 5: Search and Score
-    logger.info("Step 5: Searching and scoring...")
+    # Get top reverse queries for fan-out
+    top_reverse_queries = []
+    for chunk_result in reverse_queries:
+        chunk_queries = chunk_result.get('queries', [])
+        # Sort by relevance score and take top queries
+        sorted_queries = sorted(chunk_queries, key=lambda x: x.get('relevance_score', 0), reverse=True)
+        top_reverse_queries.extend(sorted_queries[:args.max_reverse_queries])
+    
+    # Limit to top 5 reverse queries for fan-out
+    top_reverse_queries = top_reverse_queries[:5]
+    reverse_query_texts = [q.get('query_text', '') for q in top_reverse_queries if q.get('query_text')]
+    
+    logger.info(f"Generated {len(reverse_query_texts)} top reverse queries")
+    
+    # Step 5: Query Fan-out Expansion
+    logger.info("Step 5: Expanding queries with fan-out...")
+    fanout_generator = QueryFanoutGenerator()
+    all_fanout_queries = []
+    
+    for reverse_query in reverse_query_texts:
+        fanout_queries = fanout_generator.generate_fanout(
+            reverse_query, 
+            mode="AI Overview (simple)",
+            max_expansions=args.max_fanout_per_query
+        )
+        all_fanout_queries.extend(fanout_queries)
+    
+    # Combine original query expansion with fan-out queries
+    expanded_queries = expand_query_simple(args.query, args.max_expansions)
+    expanded_queries.extend(all_fanout_queries)
+    
+    logger.info(f"Generated {len(expanded_queries)} total expanded queries")
+    
+    # Step 6: Search and Score
+    logger.info("Step 6: Searching and scoring...")
     all_results = []
     for query in expanded_queries:
         similar_chunks = faiss_index.search_similar(query, args.top_k)
@@ -585,18 +635,11 @@ def pipeline_command(args):
     
     logger.info(f"Found {len(top_results)} top results")
     
-    # Step 6: Social Media (optional)
-    if args.social:
-        logger.info("Step 6: Analyzing social media...")
-        social_data = gather_social_chatter(args.query)
-        analysis = analyze_social_impact(social_data)
-        logger.info(f"Found {analysis['total_content']} social media mentions")
-    
-    # Step 6: Social Media (optional)
+    # Step 7: Social Media (optional)
     social_data = None
     analysis = None
     if args.social:
-        logger.info("Step 6: Analyzing social media...")
+        logger.info("Step 7: Analyzing social media...")
         social_data = gather_social_chatter(args.query)
         analysis = analyze_social_impact(social_data)
         logger.info(f"Found {analysis['total_content']} social media mentions")
@@ -904,10 +947,15 @@ Examples:
     pipeline_parser = subparsers.add_parser('pipeline', help='Run full pipeline')
     pipeline_parser.add_argument('url', help='Website URL to analyze')
     pipeline_parser.add_argument('query', help='Query to analyze')
-    pipeline_parser.add_argument('--max-pages', type=int, default=50, help='Maximum pages to crawl')
+    pipeline_parser.add_argument('--max-pages', type=int, default=3, help='Maximum pages to crawl')
     pipeline_parser.add_argument('--depth', type=int, default=2, help='Crawl depth')
     pipeline_parser.add_argument('--delay', type=float, default=1.0, help='Delay between requests')
     pipeline_parser.add_argument('--no-semantic', action='store_true', help='Disable semantic chunking')
+    pipeline_parser.add_argument('--chunk-size', type=int, default=200, help='Chunk size in tokens')
+    pipeline_parser.add_argument('--max-chunks', type=int, default=100, help='Maximum number of chunks')
+    pipeline_parser.add_argument('--sliding-window', type=int, default=100, help='Sliding window overlap')
+    pipeline_parser.add_argument('--max-reverse-queries', type=int, default=5, help='Maximum reverse queries per chunk')
+    pipeline_parser.add_argument('--max-fanout-per-query', type=int, default=15, help='Maximum fan-out queries per reverse query')
     pipeline_parser.add_argument('--max-expansions', type=int, default=15, help='Maximum query expansions')
     pipeline_parser.add_argument('--top-k', type=int, default=10, help='Number of top results')
     pipeline_parser.add_argument('--social', action='store_true', help='Include social media analysis')

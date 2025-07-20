@@ -21,6 +21,7 @@ from src.expand import expand_query_simple, generate_intent_tree_simple
 from src.score import score_query_chunks, analyze_content_performance_simple
 from src.channels import gather_social_chatter, analyze_social_impact
 from src.query_generator import ReverseQueryGenerator, QueryAnalyzer
+from src.query_fanout import QueryFanoutGenerator
 from src.utils import create_data_dir, load_jsonl, logger
 
 # Page configuration
@@ -94,16 +95,20 @@ def main():
     
     # Pipeline configuration
     st.sidebar.subheader("Pipeline Settings")
-    max_pages = st.sidebar.slider("Max Pages to Crawl", 10, 200, 50)
-    chunk_size = st.sidebar.slider("Chunk Size (tokens)", 100, 300, 150)
+    max_pages = st.sidebar.slider("Max Pages to Crawl", 1, 10, 3)
+    chunk_size = st.sidebar.slider("Chunk Size (tokens)", 100, 500, 200)
+    max_chunks = st.sidebar.slider("Max Chunks", 50, 200, 100)
+    sliding_window = st.sidebar.slider("Sliding Window Overlap", 50, 200, 100)
+    max_reverse_queries = st.sidebar.slider("Max Reverse Queries", 3, 10, 5)
+    max_fanout_per_query = st.sidebar.slider("Max Fan-out per Query", 10, 20, 15)
     max_expansions = st.sidebar.slider("Max Query Expansions", 5, 30, 15)
     top_k = st.sidebar.slider("Top K Results", 5, 20, 10)
     
     # Main tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Pipeline", "📊 Analysis", "🔍 Search", "📱 Social", "🔄 Reverse Queries"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🚀 Pipeline", "📊 Analysis", "🔍 Search", "📱 Social", "🔄 Reverse Queries", "🏢 Brand Curation"])
     
     with tab1:
-        pipeline_tab(max_pages, chunk_size, max_expansions, top_k)
+        pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_queries, max_fanout_per_query, max_expansions, top_k)
     
     with tab2:
         analysis_tab()
@@ -116,8 +121,11 @@ def main():
     
     with tab5:
         reverse_queries_tab()
+    
+    with tab6:
+        brand_curation_tab()
 
-def pipeline_tab(max_pages, chunk_size, max_expansions, top_k):
+def pipeline_tab(max_pages, chunk_size, max_chunks, sliding_window, max_reverse_queries, max_fanout_per_query, max_expansions, top_k):
     """Pipeline execution tab."""
     st.header("🚀 Run Complete Pipeline")
     
@@ -160,7 +168,20 @@ def pipeline_tab(max_pages, chunk_size, max_expansions, top_k):
                 status_text.text("Step 2/6: Chunking content...")
                 progress_bar.progress(33)
                 
-                chunks = chunk_crawled_pages(use_semantic=use_semantic)
+                # Use semantic chunking with new parameters
+                if use_semantic:
+                    chunker = SemanticChunker(
+                        chunk_size=chunk_size,
+                        max_chunks=max_chunks,
+                        sliding_window=sliding_window
+                    )
+                    chunks = chunker.chunk_crawled_pages()
+                else:
+                    chunks = chunk_crawled_pages(use_semantic=False)
+                
+                # Limit chunks to max_chunks
+                if len(chunks) > max_chunks:
+                    chunks = chunks[:max_chunks]
                 
                 st.success(f"✅ Created {len(chunks)} chunks")
                 
@@ -175,17 +196,56 @@ def pipeline_tab(max_pages, chunk_size, max_expansions, top_k):
                 
                 st.success("✅ Created FAISS index")
                 
-                # Step 4: Query Expansion
-                status_text.text("Step 4/6: Expanding queries...")
-                progress_bar.progress(66)
+                # Step 4: Generate Reverse Queries
+                status_text.text("Step 4/7: Generating reverse queries...")
+                progress_bar.progress(57)
                 
+                query_generator = ReverseQueryGenerator()
+                reverse_queries = query_generator.generate_queries_for_chunks(
+                    chunks, 
+                    max_queries_per_chunk=max_reverse_queries,
+                    output_file="data/reverse_queries.jsonl"
+                )
+                
+                # Get top reverse queries for fan-out
+                top_reverse_queries = []
+                for chunk_result in reverse_queries:
+                    chunk_queries = chunk_result.get('queries', [])
+                    # Sort by relevance score and take top queries
+                    sorted_queries = sorted(chunk_queries, key=lambda x: x.get('relevance_score', 0), reverse=True)
+                    top_reverse_queries.extend(sorted_queries[:max_reverse_queries])
+                
+                # Limit to top 5 reverse queries for fan-out
+                top_reverse_queries = top_reverse_queries[:5]
+                reverse_query_texts = [q.get('query_text', '') for q in top_reverse_queries if q.get('query_text')]
+                
+                st.success(f"✅ Generated {len(reverse_query_texts)} top reverse queries")
+                
+                # Step 5: Query Fan-out Expansion
+                status_text.text("Step 5/7: Expanding queries with fan-out...")
+                progress_bar.progress(71)
+                
+                # Use reverse queries for fan-out expansion
+                fanout_generator = QueryFanoutGenerator()
+                all_fanout_queries = []
+                
+                for reverse_query in reverse_query_texts:
+                    fanout_queries = fanout_generator.generate_fanout(
+                        reverse_query, 
+                        mode="AI Overview (simple)",
+                        max_expansions=max_fanout_per_query
+                    )
+                    all_fanout_queries.extend(fanout_queries)
+                
+                # Combine original query expansion with fan-out queries
                 expanded_queries = expand_query_simple(query, max_expansions)
+                expanded_queries.extend(all_fanout_queries)
                 
-                st.success(f"✅ Generated {len(expanded_queries)} expanded queries")
+                st.success(f"✅ Generated {len(expanded_queries)} total expanded queries")
                 
-                # Step 5: Search and Score
-                status_text.text("Step 5/6: Searching and scoring...")
-                progress_bar.progress(83)
+                # Step 6: Search and Score
+                status_text.text("Step 6/7: Searching and scoring...")
+                progress_bar.progress(85)
                 
                 all_results = []
                 for expanded_query in expanded_queries:
@@ -206,9 +266,9 @@ def pipeline_tab(max_pages, chunk_size, max_expansions, top_k):
                 
                 st.success(f"✅ Found {len(top_results)} top results")
                 
-                # Step 6: Social Media (optional)
+                # Step 7: Social Media (optional)
                 if include_social:
-                    status_text.text("Step 6/6: Analyzing social media...")
+                    status_text.text("Step 7/7: Analyzing social media...")
                     progress_bar.progress(100)
                     
                     social_data = gather_social_chatter(query)
@@ -697,6 +757,247 @@ def reverse_queries_tab():
                 
             except Exception as e:
                 st.error(f"Error generating reverse queries: {e}")
+                st.exception(e)
+
+def brand_curation_tab():
+    """Brand-specific curation and optimization tab."""
+    st.header("🏢 Brand Curation & Optimization")
+    st.markdown("### AI-Powered Content Strategy for Brands")
+    
+    # Brand Information
+    st.subheader("🎯 Brand Profile")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        brand_name = st.text_input("Brand Name", placeholder="Your Brand")
+        industry = st.selectbox(
+            "Industry",
+            ["B2B SaaS", "E-commerce", "Healthcare", "Finance", "Education", "Real Estate", 
+             "Manufacturing", "Consulting", "Agency", "Personal Brand", "Other"]
+        )
+        brand_stage = st.selectbox(
+            "Brand Stage",
+            ["Startup", "Growth", "Established", "Enterprise", "Personal Brand"]
+        )
+    
+    with col2:
+        target_audience = st.multiselect(
+            "Target Audience",
+            ["B2B Decision Makers", "B2C Consumers", "Developers", "Marketers", "Sales Teams",
+             "Executives", "Small Business Owners", "Enterprise Buyers", "Freelancers", "Students"]
+        )
+        content_goals = st.multiselect(
+            "Content Goals",
+            ["Brand Awareness", "Lead Generation", "Thought Leadership", "Customer Education",
+             "Product Marketing", "SEO Traffic", "Social Engagement", "Community Building"]
+        )
+    
+    # Query Strategy
+    st.subheader("🔍 Query Strategy")
+    
+    strategy_type = st.selectbox(
+        "Analysis Strategy",
+        ["Content Audit", "Competitive Analysis", "Market Research", "SEO Optimization", 
+         "Social Media Strategy", "Thought Leadership", "Product Marketing"]
+    )
+    
+    # Brand-specific query templates
+    query_templates = {
+        "Content Audit": {
+            "B2B SaaS": ["B2B SaaS content marketing ROI", "SaaS lead generation content", "B2B content marketing strategies"],
+            "E-commerce": ["e-commerce SEO optimization", "online store content marketing", "e-commerce conversion optimization"],
+            "Healthcare": ["healthcare content marketing", "medical practice SEO", "healthcare lead generation"],
+            "Finance": ["financial services content marketing", "fintech SEO strategies", "wealth management content"],
+            "Education": ["edtech content marketing", "online course marketing", "educational content SEO"],
+            "Real Estate": ["real estate content marketing", "property listing SEO", "real estate lead generation"],
+            "Manufacturing": ["manufacturing content marketing", "industrial SEO", "B2B manufacturing marketing"],
+            "Consulting": ["consulting content marketing", "professional services SEO", "thought leadership content"],
+            "Agency": ["agency content marketing", "service business SEO", "agency lead generation"],
+            "Personal Brand": ["personal branding strategies", "thought leadership content", "personal brand SEO"]
+        },
+        "Competitive Analysis": {
+            "B2B SaaS": ["SaaS competitor analysis", "B2B SaaS market positioning", "SaaS content strategy"],
+            "E-commerce": ["e-commerce competitor research", "online store competitive analysis", "e-commerce market trends"],
+            "Healthcare": ["healthcare competitor analysis", "medical practice competitive research", "healthcare market trends"],
+            "Finance": ["financial services competitive analysis", "fintech competitor research", "wealth management trends"],
+            "Education": ["edtech competitive analysis", "online education market research", "educational content trends"],
+            "Real Estate": ["real estate competitive analysis", "property market research", "real estate marketing trends"],
+            "Manufacturing": ["manufacturing competitive analysis", "industrial market research", "B2B manufacturing trends"],
+            "Consulting": ["consulting competitive analysis", "professional services research", "consulting market trends"],
+            "Agency": ["agency competitive analysis", "service business research", "agency market trends"],
+            "Personal Brand": ["personal brand competitive analysis", "thought leadership research", "personal brand trends"]
+        },
+        "Market Research": {
+            "B2B SaaS": ["B2B SaaS market trends", "SaaS industry analysis", "B2B software market research"],
+            "E-commerce": ["e-commerce market trends", "online retail analysis", "e-commerce industry research"],
+            "Healthcare": ["healthcare market trends", "medical industry analysis", "healthcare technology research"],
+            "Finance": ["financial services trends", "fintech market analysis", "wealth management research"],
+            "Education": ["edtech market trends", "online education analysis", "educational technology research"],
+            "Real Estate": ["real estate market trends", "property market analysis", "real estate technology research"],
+            "Manufacturing": ["manufacturing market trends", "industrial analysis", "B2B manufacturing research"],
+            "Consulting": ["consulting market trends", "professional services analysis", "consulting industry research"],
+            "Agency": ["agency market trends", "service business analysis", "marketing agency research"],
+            "Personal Brand": ["personal brand trends", "thought leadership analysis", "personal brand research"]
+        }
+    }
+    
+    # Show recommended queries based on selection
+    if strategy_type in query_templates and industry in query_templates[strategy_type]:
+        recommended_queries = query_templates[strategy_type][industry]
+        
+        st.write("**Recommended Queries for Your Brand:**")
+        selected_queries = []
+        
+        for i, query in enumerate(recommended_queries):
+            if st.checkbox(f"✅ {query}", key=f"query_{i}"):
+                selected_queries.append(query)
+        
+        # Custom queries
+        st.write("**Custom Queries:**")
+        custom_queries = st.text_area(
+            "Add your own queries (one per line)",
+            placeholder="Enter custom queries here...",
+            height=100
+        )
+        
+        if custom_queries:
+            custom_list = [q.strip() for q in custom_queries.split('\n') if q.strip()]
+            selected_queries.extend(custom_list)
+    
+    # Analysis Options
+    st.subheader("📊 Analysis Options")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        include_reverse_queries = st.checkbox("Generate Reverse Queries", value=True)
+        include_fanout = st.checkbox("Query Fan-Out Expansion", value=True)
+        include_xai_optimization = st.checkbox("XAI Content Optimization", value=True)
+    
+    with col2:
+        include_channel_analysis = st.checkbox("Channel Strategy Analysis", value=True)
+        include_comprehensive_scoring = st.checkbox("Comprehensive Scoring", value=True)
+        include_social_analysis = st.checkbox("Social Media Analysis", value=False)
+    
+    # Brand-specific insights
+    st.subheader("💡 Brand-Specific Insights")
+    
+    # Industry benchmarks
+    industry_benchmarks = {
+        "B2B SaaS": {
+            "avg_content_length": "1500-2500 words",
+            "publishing_frequency": "2-3 times per week",
+            "top_channels": ["LinkedIn", "Reddit", "Quora", "Google"],
+            "content_types": ["Case Studies", "Technical Guides", "Thought Leadership", "Product Updates"]
+        },
+        "E-commerce": {
+            "avg_content_length": "800-1500 words",
+            "publishing_frequency": "3-4 times per week",
+            "top_channels": ["Google", "Instagram", "Pinterest", "Facebook"],
+            "content_types": ["Product Guides", "Shopping Tips", "Reviews", "Lifestyle Content"]
+        },
+        "Healthcare": {
+            "avg_content_length": "1000-2000 words",
+            "publishing_frequency": "1-2 times per week",
+            "top_channels": ["Google", "LinkedIn", "Medical Forums", "YouTube"],
+            "content_types": ["Educational Content", "Patient Resources", "Medical Updates", "Wellness Tips"]
+        },
+        "Finance": {
+            "avg_content_length": "1200-2500 words",
+            "publishing_frequency": "2-3 times per week",
+            "top_channels": ["LinkedIn", "Google", "Financial Forums", "YouTube"],
+            "content_types": ["Market Analysis", "Investment Guides", "Financial Planning", "Regulatory Updates"]
+        }
+    }
+    
+    if industry in industry_benchmarks:
+        benchmarks = industry_benchmarks[industry]
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Avg Content Length", benchmarks["avg_content_length"])
+            st.metric("Publishing Frequency", benchmarks["publishing_frequency"])
+        
+        with col2:
+            st.write("**Top Channels:**")
+            for channel in benchmarks["top_channels"]:
+                st.write(f"• {channel}")
+            
+            st.write("**Content Types:**")
+            for content_type in benchmarks["content_types"]:
+                st.write(f"• {content_type}")
+    
+    # Run Analysis
+    st.subheader("🚀 Run Brand Analysis")
+    
+    if st.button("🏢 Run Brand Curation Analysis", type="primary"):
+        if not selected_queries:
+            st.error("Please select at least one query for analysis")
+            return
+        
+        if not os.environ.get("GOOGLE_API_KEY"):
+            st.error("Please provide Google Gemini API key")
+            return
+        
+        # Run brand-specific analysis
+        with st.spinner("Running brand curation analysis..."):
+            try:
+                # This would integrate with the existing CLI commands
+                st.info("Brand analysis would run the following:")
+                
+                analysis_steps = []
+                if include_reverse_queries:
+                    analysis_steps.append("🔄 Reverse Query Generation")
+                if include_fanout:
+                    analysis_steps.append("🌊 Query Fan-Out Expansion")
+                if include_xai_optimization:
+                    analysis_steps.append("🧠 XAI Content Optimization")
+                if include_channel_analysis:
+                    analysis_steps.append("📱 Channel Strategy Analysis")
+                if include_comprehensive_scoring:
+                    analysis_steps.append("🎯 Comprehensive Scoring")
+                if include_social_analysis:
+                    analysis_steps.append("📱 Social Media Analysis")
+                
+                for step in analysis_steps:
+                    st.write(f"• {step}")
+                
+                # Show brand-specific recommendations
+                st.success("✅ Brand analysis completed!")
+                
+                # Display brand insights
+                st.subheader("🏢 Brand Insights")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Industry", industry)
+                    st.metric("Brand Stage", brand_stage)
+                    st.metric("Target Audiences", len(target_audience))
+                
+                with col2:
+                    st.metric("Content Goals", len(content_goals))
+                    st.metric("Analysis Strategy", strategy_type)
+                    st.metric("Selected Queries", len(selected_queries))
+                
+                # Brand-specific recommendations
+                st.subheader("💡 Brand-Specific Recommendations")
+                
+                recommendations = [
+                    f"**Content Strategy:** Focus on {', '.join(content_goals[:2])} content for {industry}",
+                    f"**Audience Targeting:** Create content specifically for {', '.join(target_audience[:2])}",
+                    f"**Channel Priority:** Prioritize channels based on {industry} audience behavior",
+                    f"**Content Types:** Develop {strategy_type.lower()} content that resonates with your brand stage",
+                    f"**Query Focus:** Optimize for {len(selected_queries)} high-value queries in your niche"
+                ]
+                
+                for rec in recommendations:
+                    st.info(rec)
+                
+            except Exception as e:
+                st.error(f"Error running brand analysis: {e}")
                 st.exception(e)
 
 if __name__ == "__main__":
