@@ -14,29 +14,86 @@ from .utils import (
 )
 
 class RedditScraper:
-    """Scrape Reddit for relevant discussions and influencer content."""
+    """Scrape Reddit for relevant discussions and influencer content using Pushshift API."""
     
     def __init__(self):
+        # Try PRAW first, fallback to Pushshift
         client_id = get_env_var("REDDIT_CLIENT_ID")
         client_secret = get_env_var("REDDIT_CLIENT_SECRET")
         user_agent = get_env_var("REDDIT_USER_AGENT", "ZeroClickCompass/1.0")
         
-        if not all([client_id, client_secret]):
-            logger.warning("Reddit API credentials not configured")
-            self.reddit = None
+        self.use_pushshift = False
+        
+        if all([client_id, client_secret]):
+            try:
+                self.reddit = praw.Reddit(
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    user_agent=user_agent
+                )
+                logger.info("Using PRAW for Reddit scraping")
+            except Exception as e:
+                logger.warning(f"PRAW failed: {e}, falling back to Pushshift")
+                self.use_pushshift = True
+                self.reddit = None
         else:
-            self.reddit = praw.Reddit(
-                client_id=client_id,
-                client_secret=client_secret,
-                user_agent=user_agent
-            )
+            logger.info("No Reddit API credentials, using Pushshift")
+            self.use_pushshift = True
+            self.reddit = None
     
     @retry_on_failure(max_retries=3, delay=2.0)
     def search_subreddits(self, query: str, subreddits: List[str] = None, 
                          limit: int = 100, time_filter: str = "month") -> List[Dict]:
-        """Search for posts across multiple subreddits."""
+        """Search for posts across multiple subreddits using PRAW or Pushshift."""
+        if self.use_pushshift:
+            return self._search_pushshift(query, subreddits, limit)
+        else:
+            return self._search_praw(query, subreddits, limit, time_filter)
+    
+    def _search_pushshift(self, query: str, subreddits: List[str] = None, limit: int = 100) -> List[Dict]:
+        """Search Reddit using Pushshift API."""
+        if subreddits is None:
+            subreddits = [
+                'marketing', 'SEO', 'contentmarketing', 'digitalmarketing',
+                'entrepreneur', 'startups', 'business', 'technology'
+            ]
+        
+        all_posts = []
+        
+        for subreddit_name in subreddits:
+            try:
+                # Pushshift API endpoint
+                url = f"https://api.pushshift.io/reddit/search/submission/"
+                params = {
+                    'q': query,
+                    'subreddit': subreddit_name,
+                    'size': min(limit, 100),  # Pushshift limit
+                    'sort': 'score',
+                    'sort_type': 'score'
+                }
+                
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                for post in data.get('data', []):
+                    post_data = self._extract_pushshift_post(post)
+                    if post_data:
+                        all_posts.append(post_data)
+                
+                logger.info(f"Found {len(all_posts)} posts in r/{subreddit_name} via Pushshift")
+                time.sleep(1)  # Rate limiting
+                
+            except Exception as e:
+                logger.error(f"Error scraping r/{subreddit_name} via Pushshift: {e}")
+        
+        return all_posts
+    
+    def _search_praw(self, query: str, subreddits: List[str] = None, 
+                    limit: int = 100, time_filter: str = "month") -> List[Dict]:
+        """Search Reddit using PRAW."""
         if not self.reddit:
-            logger.warning("Reddit API not available")
+            logger.warning("PRAW not available")
             return []
         
         if subreddits is None:
@@ -57,16 +114,16 @@ class RedditScraper:
                     if post_data:
                         all_posts.append(post_data)
                 
-                logger.info(f"Found {len(all_posts)} posts in r/{subreddit_name}")
+                logger.info(f"Found {len(all_posts)} posts in r/{subreddit_name} via PRAW")
                 time.sleep(1)  # Rate limiting
                 
             except Exception as e:
-                logger.error(f"Error scraping r/{subreddit_name}: {e}")
+                logger.error(f"Error scraping r/{subreddit_name} via PRAW: {e}")
         
         return all_posts
     
     def _extract_post_data(self, post) -> Optional[Dict]:
-        """Extract relevant data from a Reddit post."""
+        """Extract relevant data from a PRAW Reddit post."""
         try:
             return {
                 'id': post.id,
@@ -83,16 +140,47 @@ class RedditScraper:
                 'engagement_score': self._calculate_engagement_score(post)
             }
         except Exception as e:
-            logger.error(f"Error extracting post data: {e}")
+            logger.error(f"Error extracting PRAW post data: {e}")
+            return None
+    
+    def _extract_pushshift_post(self, post_data: Dict) -> Optional[Dict]:
+        """Extract relevant data from a Pushshift API post."""
+        try:
+            return {
+                'id': post_data.get('id', ''),
+                'title': sanitize_text(post_data.get('title', '')),
+                'content': sanitize_text(post_data.get('selftext', '')),
+                'author': post_data.get('author', '[deleted]'),
+                'subreddit': post_data.get('subreddit', ''),
+                'score': post_data.get('score', 0),
+                'upvote_ratio': post_data.get('upvote_ratio', 1.0),
+                'num_comments': post_data.get('num_comments', 0),
+                'created_utc': post_data.get('created_utc', 0),
+                'url': f"https://reddit.com{post_data.get('permalink', '')}",
+                'platform': 'reddit',
+                'engagement_score': self._calculate_pushshift_engagement(post_data)
+            }
+        except Exception as e:
+            logger.error(f"Error extracting Pushshift post data: {e}")
             return None
     
     def _calculate_engagement_score(self, post) -> float:
-        """Calculate engagement score for a post."""
+        """Calculate engagement score for a PRAW post."""
         score = post.score
         comments = post.num_comments
         upvote_ratio = post.upvote_ratio
         
         # Simple engagement formula
+        engagement = (score * upvote_ratio) + (comments * 2)
+        return engagement
+    
+    def _calculate_pushshift_engagement(self, post_data: Dict) -> float:
+        """Calculate engagement score for a Pushshift post."""
+        score = post_data.get('score', 0)
+        comments = post_data.get('num_comments', 0)
+        upvote_ratio = post_data.get('upvote_ratio', 1.0)
+        
+        # Same engagement formula
         engagement = (score * upvote_ratio) + (comments * 2)
         return engagement
     

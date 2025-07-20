@@ -22,9 +22,9 @@ class RelevanceScorer:
     
     def score_query_chunk_pair(self, query: str, chunk: Dict, 
                               scoring_methods: List[str] = None) -> Dict:
-        """Score a single query-chunk pair using multiple methods."""
+        """Score a single query-chunk pair using 0.7 cosine + 0.3 token_overlap."""
         if scoring_methods is None:
-            scoring_methods = ['semantic', 'keyword', 'length', 'position']
+            scoring_methods = ['semantic', 'keyword']  # Only the two methods we need
         
         scores = {}
         
@@ -125,24 +125,13 @@ class RelevanceScorer:
             return 0.7
     
     def _calculate_composite_score(self, scores: Dict) -> float:
-        """Calculate weighted composite score."""
-        weights = {
-            'semantic': 0.4,
-            'keyword': 0.3,
-            'length': 0.1,
-            'position': 0.1,
-            'content_type': 0.1
-        }
+        """Calculate weighted composite score using 0.7 cosine + 0.3 token_overlap."""
+        # Use the exact formula: 0.7 * cosine_similarity + 0.3 * token_overlap
+        cosine_score = scores.get('semantic', 0.0)
+        token_overlap = scores.get('keyword', 0.0)  # Using keyword as token overlap
         
-        composite = 0.0
-        total_weight = 0.0
-        
-        for method, weight in weights.items():
-            if method in scores:
-                composite += scores[method] * weight
-                total_weight += weight
-        
-        return composite / total_weight if total_weight > 0 else 0.0
+        composite = 0.7 * cosine_score + 0.3 * token_overlap
+        return composite
 
 class QueryChunkRanker:
     """Rank chunks for a given query or set of queries."""

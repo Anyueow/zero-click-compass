@@ -13,6 +13,9 @@ from .expand import expand_query_simple, generate_intent_tree_simple, QueryExpan
 from .score import score_query_chunks, analyze_content_performance_simple
 from .channels import gather_social_chatter, analyze_social_impact
 from .utils import logger, create_data_dir, load_jsonl
+import pandas as pd
+import json
+from datetime import datetime
 
 def crawl_command(args):
     """Handle crawl command."""
@@ -142,6 +145,55 @@ def social_command(args):
     
     logger.info("Social media analysis completed")
 
+def generate_visibility_csv(top_results, expanded_queries, original_query):
+    """Generate visibility.csv with content performance data."""
+    data_dir = create_data_dir()
+    
+    # Prepare data for CSV
+    rows = []
+    for i, result in enumerate(top_results, 1):
+        row = {
+            'rank': i,
+            'url': result['url'],
+            'similarity_score': result['similarity_score'],
+            'content_preview': result['content'][:200] + '...' if len(result['content']) > 200 else result['content'],
+            'chunk_id': result['id'],
+            'original_query': original_query,
+            'expanded_queries_count': len(expanded_queries),
+            'timestamp': datetime.now().isoformat()
+        }
+        rows.append(row)
+    
+    # Create DataFrame and save
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(data_dir, 'visibility.csv')
+    df.to_csv(csv_path, index=False)
+    logger.info(f"Saved visibility.csv to {csv_path}")
+
+def generate_channels_json(social_data, analysis, original_query):
+    """Generate channels.json with social media analysis data."""
+    data_dir = create_data_dir()
+    
+    # Prepare data for JSON
+    channels_data = {
+        'query': original_query,
+        'timestamp': datetime.now().isoformat(),
+        'summary': {
+            'total_content': analysis['total_content'],
+            'high_engagement_content': len(analysis['high_engagement_content']),
+            'top_influencers_count': len(analysis['top_influencers'])
+        },
+        'platforms': social_data['platforms'],
+        'top_influencers': analysis['top_influencers'][:10],  # Top 10
+        'high_engagement_content': analysis['high_engagement_content'][:20]  # Top 20
+    }
+    
+    # Save JSON
+    json_path = os.path.join(data_dir, 'channels.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(channels_data, f, indent=2, ensure_ascii=False)
+    logger.info(f"Saved channels.json to {json_path}")
+
 def pipeline_command(args):
     """Handle full pipeline command."""
     logger.info("Starting full zero-click-compass pipeline...")
@@ -201,6 +253,24 @@ def pipeline_command(args):
         social_data = gather_social_chatter(args.query)
         analysis = analyze_social_impact(social_data)
         logger.info(f"Found {analysis['total_content']} social media mentions")
+    
+    # Step 6: Social Media (optional)
+    social_data = None
+    analysis = None
+    if args.social:
+        logger.info("Step 6: Analyzing social media...")
+        social_data = gather_social_chatter(args.query)
+        analysis = analyze_social_impact(social_data)
+        logger.info(f"Found {analysis['total_content']} social media mentions")
+    
+    # Generate visibility.csv
+    logger.info("Generating visibility.csv...")
+    generate_visibility_csv(top_results, expanded_queries, args.query)
+    
+    # Generate channels.json
+    if social_data and analysis:
+        logger.info("Generating channels.json...")
+        generate_channels_json(social_data, analysis, args.query)
     
     # Print results
     print(f"\n=== Zero-Click Compass Results for: {args.query} ===")

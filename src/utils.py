@@ -60,15 +60,15 @@ def sanitize_text(text: str) -> str:
     if not text:
         return ""
     
-    # Remove extra whitespace
-    text = " ".join(text.split())
-    
-    # Remove common HTML artifacts
+    # Remove common HTML artifacts first
     text = text.replace("&nbsp;", " ")
     text = text.replace("&amp;", "&")
     text = text.replace("&lt;", "<")
     text = text.replace("&gt;", ">")
     text = text.replace("&quot;", '"')
+    
+    # Remove extra whitespace
+    text = " ".join(text.split())
     
     return text.strip()
 
