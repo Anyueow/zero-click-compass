@@ -8,6 +8,10 @@ import plotly.graph_objects as go
 from datetime import datetime
 import os
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import our modules
 from src.crawl import WebCrawler, crawl_single_page
@@ -16,6 +20,7 @@ from src.embed import embed_and_index, load_existing_index, EmbeddingPipeline
 from src.expand import expand_query_simple, generate_intent_tree_simple
 from src.score import score_query_chunks, analyze_content_performance_simple
 from src.channels import gather_social_chatter, analyze_social_impact
+from src.query_generator import ReverseQueryGenerator, QueryAnalyzer
 from src.utils import create_data_dir, load_jsonl, logger
 
 # Page configuration
@@ -67,10 +72,25 @@ def main():
     
     # API Keys section
     st.sidebar.subheader("API Configuration")
-    google_api_key = st.sidebar.text_input("Google Gemini API Key", type="password")
     
-    if google_api_key:
-        os.environ["GOOGLE_API_KEY"] = google_api_key
+    # Check if API key is already set in environment
+    current_api_key = os.getenv("GOOGLE_API_KEY", "")
+    if current_api_key:
+        st.sidebar.success("✅ Google API key loaded from .env")
+        # Option to override
+        override_key = st.sidebar.checkbox("Override with custom key")
+        if override_key:
+            google_api_key = st.sidebar.text_input("Google Gemini API Key", type="password")
+            if google_api_key:
+                os.environ["GOOGLE_API_KEY"] = google_api_key
+    else:
+        st.sidebar.warning("⚠️ Google API key not found in .env")
+        google_api_key = st.sidebar.text_input("Google Gemini API Key", type="password", 
+                                             help="Get from https://ai.google.dev/")
+        if google_api_key:
+            os.environ["GOOGLE_API_KEY"] = google_api_key
+        else:
+            st.sidebar.error("Google API key is required to run the pipeline")
     
     # Pipeline configuration
     st.sidebar.subheader("Pipeline Settings")
@@ -80,7 +100,7 @@ def main():
     top_k = st.sidebar.slider("Top K Results", 5, 20, 10)
     
     # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["🚀 Pipeline", "📊 Analysis", "🔍 Search", "📱 Social"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Pipeline", "📊 Analysis", "🔍 Search", "📱 Social", "🔄 Reverse Queries"])
     
     with tab1:
         pipeline_tab(max_pages, chunk_size, max_expansions, top_k)
@@ -93,6 +113,9 @@ def main():
     
     with tab4:
         social_tab()
+    
+    with tab5:
+        reverse_queries_tab()
 
 def pipeline_tab(max_pages, chunk_size, max_expansions, top_k):
     """Pipeline execution tab."""
@@ -526,6 +549,155 @@ def display_social_results(social_data, analysis):
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No influencer data available")
+
+def reverse_queries_tab():
+    """Reverse query generation tab."""
+    st.markdown("### 🔄 Reverse Query Generation")
+    st.markdown("**Work backwards from your content to discover what queries it answers**")
+    
+    # Check if chunks exist
+    chunks_file = "data/chunks.jsonl"
+    if not os.path.exists(chunks_file):
+        st.warning("⚠️ No chunks found. Please run the pipeline first to generate content chunks.")
+        st.info("Go to the Pipeline tab to crawl and chunk your website content.")
+        return
+    
+    # Load existing chunks
+    try:
+        chunks = load_jsonl(chunks_file)
+        st.success(f"✅ Loaded {len(chunks)} content chunks")
+    except Exception as e:
+        st.error(f"Error loading chunks: {e}")
+        return
+    
+    # Reverse query generation form
+    with st.form("reverse_form"):
+        st.subheader("Generate Queries from Content")
+        
+        # Options
+        query_types = st.multiselect(
+            "Query types to generate",
+            ["direct", "related", "long_tail", "questions", "intent_based"],
+            default=["direct", "questions", "intent_based"]
+        )
+        
+        target_queries = st.text_area(
+            "Target queries to check for gaps (optional)",
+            placeholder="Enter one query per line\ne.g.,\nmarketing strategies\nSEO best practices\ncontent optimization",
+            help="These queries will be checked against your generated queries to identify content gaps"
+        )
+        
+        analyze_results = st.checkbox("Analyze results and provide recommendations", value=True)
+        
+        generate_submitted = st.form_submit_button("Generate Reverse Queries")
+    
+    if generate_submitted:
+        if not os.getenv("GOOGLE_API_KEY"):
+            st.error("❌ Google API key is required. Please set it in the sidebar.")
+            return
+        
+        with st.spinner("Generating queries from your content chunks..."):
+            try:
+                # Initialize query generator
+                query_generator = ReverseQueryGenerator()
+                
+                # Generate queries
+                output_file = "data/generated_queries.jsonl"
+                summary = query_generator.generate_queries_for_all_chunks(chunks, output_file)
+                
+                # Display results
+                st.success(f"✅ Generated {summary['total_queries_generated']} queries from {summary['total_chunks_processed']} chunks")
+                
+                # Load and display generated queries
+                generated_queries = load_jsonl(output_file)
+                
+                # Show summary metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Queries", summary['total_queries_generated'])
+                with col2:
+                    st.metric("Chunks Processed", summary['total_chunks_processed'])
+                with col3:
+                    st.metric("Avg Queries/Chunk", f"{summary['average_queries_per_chunk']:.1f}")
+                
+                # Show sample queries
+                st.subheader("Sample Generated Queries")
+                all_queries = []
+                for chunk_result in generated_queries:
+                    all_queries.extend(chunk_result.get('queries', []))
+                
+                if all_queries:
+                    # Show top queries by relevance
+                    top_queries = sorted(all_queries, key=lambda x: x.get('relevance_score', 0), reverse=True)[:10]
+                    
+                    for i, query in enumerate(top_queries, 1):
+                        with st.expander(f"{i}. {query.get('query_text', 'Unknown')} (Score: {query.get('relevance_score', 0)})"):
+                            st.write(f"**Category:** {query.get('category', 'Unknown')}")
+                            st.write(f"**Intent:** {query.get('intent', 'Unknown')}")
+                            st.write(f"**Relevance Score:** {query.get('relevance_score', 0)}/10")
+                            st.write(f"**Confidence:** {query.get('confidence', 0):.2f}")
+                
+                # Analyze if requested
+                if analyze_results:
+                    st.subheader("📊 Analysis & Recommendations")
+                    
+                    analyzer = QueryAnalyzer()
+                    
+                    # Coverage analysis
+                    coverage_analysis = query_generator.analyze_query_coverage(generated_queries)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Average Relevance", f"{coverage_analysis['average_relevance_score']:.1f}/10")
+                        st.metric("Unique Chunks", coverage_analysis['unique_chunks'])
+                    
+                    with col2:
+                        # Category distribution
+                        categories = coverage_analysis.get('category_distribution', {})
+                        if categories:
+                            st.write("**Category Distribution:**")
+                            for category, count in sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]:
+                                st.write(f"• {category}: {count}")
+                    
+                    # Content gaps analysis
+                    if target_queries:
+                        target_list = [q.strip() for q in target_queries.split('\n') if q.strip()]
+                        if target_list:
+                            st.subheader("🎯 Content Gap Analysis")
+                            gap_analysis = analyzer.find_content_gaps(generated_queries, target_list)
+                            
+                            if gap_analysis['gap_count'] > 0:
+                                st.warning(f"Found {gap_analysis['gap_count']} content gaps:")
+                                for gap in gap_analysis['content_gaps']:
+                                    st.write(f"❌ **{gap['target_query']}** (Priority: {gap['priority']})")
+                            else:
+                                st.success("✅ All target queries are covered by your content!")
+                    
+                    # Optimization recommendations
+                    st.subheader("💡 Content Optimization Recommendations")
+                    optimization = analyzer.optimize_content_strategy(generated_queries)
+                    
+                    if optimization['recommendations']:
+                        for rec in optimization['recommendations']:
+                            priority_icon = "🔴" if rec['priority'] == 'high' else "🟡" if rec['priority'] == 'medium' else "🟢"
+                            st.info(f"{priority_icon} **{rec['type'].replace('_', ' ').title()}:** {rec['message']}")
+                    else:
+                        st.success("✅ Your content strategy looks well-balanced!")
+                
+                # Download results
+                st.subheader("📥 Download Results")
+                if os.path.exists(output_file):
+                    with open(output_file, 'r') as f:
+                        st.download_button(
+                            label="Download Generated Queries (JSONL)",
+                            data=f.read(),
+                            file_name="generated_queries.jsonl",
+                            mime="application/json"
+                        )
+                
+            except Exception as e:
+                st.error(f"Error generating reverse queries: {e}")
+                st.exception(e)
 
 if __name__ == "__main__":
     main() 

@@ -124,6 +124,7 @@ class ServiceRegistry:
         from ..infrastructure.config import EnvironmentConfigProvider
         from ..infrastructure.logging import StandardLogger
         from ..infrastructure.storage import JSONLRepository
+        from .interfaces import ConfigurationProvider, Logger, DataRepository
         
         # Core services
         self.container.register_singleton(ConfigurationProvider, EnvironmentConfigProvider)

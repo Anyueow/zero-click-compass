@@ -192,7 +192,11 @@ Each class has **one reason to change**:
 conda activate MLHW  # or your preferred env
 pip install -r requirements.txt
 
-# Configure with environment variables or config.json
+# Configure with .env file (recommended) or environment variables
+cp env.template .env
+# Edit .env with your API keys
+
+# Or export manually:
 export GOOGLE_API_KEY=your_gemini_api_key
 export REDDIT_CLIENT_ID=your_reddit_client_id
 export TWITTER_BEARER_TOKEN=your_twitter_token
