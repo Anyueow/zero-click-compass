@@ -87,14 +87,36 @@ class ComprehensiveScorer:
             'summary': {}
         }
         
+        # Debug: Log chunk structure
+        if chunks:
+            logger.info(f"First chunk keys: {list(chunks[0].keys())}")
+            logger.info(f"First chunk text preview: {chunks[0].get('text', '')[:100]}...")
+        
         # Get top 10 fan-out queries
         top_queries = sorted(fanout_queries, key=lambda x: x.get('best_score', 0), reverse=True)[:10]
         query_texts = [q.get('query', '') for q in top_queries]
         
+        logger.info(f"Top queries for analysis: {query_texts[:3]}...")
+        
         # Score each chunk against top queries
-        for chunk in chunks:
-            chunk_score = self._score_single_chunk(chunk, query_texts)
-            results['chunk_scores'].append(chunk_score)
+        for i, chunk in enumerate(chunks):
+            try:
+                chunk_score = self._score_single_chunk(chunk, query_texts)
+                results['chunk_scores'].append(chunk_score)
+                logger.info(f"Scored chunk {i+1}/{len(chunks)}: {chunk_score['avg_relevance_score']:.3f}")
+            except Exception as e:
+                logger.error(f"Error scoring chunk {i}: {e}")
+                # Add a default score for failed chunks
+                results['chunk_scores'].append({
+                    'chunk_id': chunk.get('id', f'chunk_{i}'),
+                    'url': chunk.get('url', ''),
+                    'text_preview': chunk.get('text', '')[:200] + "..." if chunk.get('text') else "No text",
+                    'query_matches': [],
+                    'avg_relevance_score': 0.0,
+                    'max_relevance_score': 0.0,
+                    'overall_grade': 'F',
+                    'priority_level': 'high'
+                })
         
         # Analyze content gaps
         results['content_gaps'] = self._analyze_content_gaps(results['chunk_scores'])
@@ -110,7 +132,7 @@ class ComprehensiveScorer:
         # Generate summary
         results['summary'] = self._generate_summary(results)
         
-        logger.info(f"✅ Comprehensive scoring completed")
+        logger.info(f"✅ Comprehensive scoring completed: {len(results['chunk_scores'])} chunks scored")
         return results
     
     def _score_single_chunk(self, chunk: Dict, query_texts: List[str]) -> Dict[str, Any]:
@@ -162,9 +184,12 @@ class ComprehensiveScorer:
     
     def _calculate_relevance_score(self, chunk_text: str, query: str) -> float:
         """Calculate relevance score between chunk and query."""
+        if not chunk_text or not query:
+            return 0.0
+            
         # Simple keyword matching for now (can be enhanced with semantic similarity)
-        query_words = set(query.split())
-        chunk_words = set(chunk_text.split())
+        query_words = set(query.lower().split())
+        chunk_words = set(chunk_text.lower().split())
         
         # Calculate word overlap
         overlap = len(query_words.intersection(chunk_words))
@@ -173,16 +198,26 @@ class ComprehensiveScorer:
         if total_query_words == 0:
             return 0.0
         
-        # Base score from word overlap
-        base_score = overlap / total_query_words
+        # Base score from word overlap (weighted by importance)
+        base_score = (overlap / total_query_words) * 0.6
         
         # Bonus for exact phrase matches
-        phrase_bonus = 0.2 if query.lower() in chunk_text.lower() else 0.0
+        phrase_bonus = 0.3 if query.lower() in chunk_text.lower() else 0.0
+        
+        # Bonus for partial phrase matches
+        partial_bonus = 0.0
+        query_parts = query.lower().split()
+        if len(query_parts) > 1:
+            # Check for consecutive word matches
+            for i in range(len(query_parts) - 1):
+                phrase = f"{query_parts[i]} {query_parts[i+1]}"
+                if phrase in chunk_text.lower():
+                    partial_bonus += 0.1
         
         # Bonus for semantic similarity (simplified)
-        semantic_bonus = 0.1 if any(word in chunk_text for word in query_words) else 0.0
+        semantic_bonus = 0.1 if any(word in chunk_text.lower() for word in query_words if len(word) > 3) else 0.0
         
-        final_score = min(1.0, base_score + phrase_bonus + semantic_bonus)
+        final_score = min(1.0, base_score + phrase_bonus + partial_bonus + semantic_bonus)
         return round(final_score, 3)
     
     def _identify_content_gaps(self, chunk_text: str, query: str) -> List[str]:

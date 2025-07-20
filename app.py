@@ -19,6 +19,7 @@ from src.embed import EmbeddingPipeline
 from src.query_generator import ReverseQueryGenerator
 from src.query_fanout import QueryFanoutGenerator
 from src.comprehensive_scorer import ComprehensiveScorer
+from src.enhanced_ai_analyzer import EnhancedAIAnalyzer
 from src.utils import logger, create_data_dir, load_jsonl, save_jsonl
 
 # Page config
@@ -130,12 +131,12 @@ def run_pipeline(url, query, max_pages=3, max_chunks_per_page=5):
         generated_queries = load_jsonl("data/reverse_queries.jsonl")
         results['reverse_queries'] = generated_queries
         
-        # Extract top queries with full metadata
+        # Extract top queries with full metadata (limit to 2 per chunk)
         all_queries = []
         for chunk_result in generated_queries:
             chunk_queries = chunk_result.get('queries', [])
             sorted_queries = sorted(chunk_queries, key=lambda x: x.get('relevance_score', 0), reverse=True)
-            all_queries.extend(sorted_queries[:3])  # Top 3 per chunk
+            all_queries.extend(sorted_queries[:2])  # Top 2 per chunk (reduced from 3)
         
         top_queries = all_queries[:5]  # Top 5 overall
         log_to_streamlit(f"✅ Generated {len(top_queries)} top reverse queries")
@@ -182,6 +183,10 @@ def run_pipeline(url, query, max_pages=3, max_chunks_per_page=5):
             query = fanout_query_data['query']
             similar_chunks = faiss_index.search_similar(query, 5)
             
+            # Add query information to each result
+            for chunk in similar_chunks:
+                chunk['query'] = query  # Add the query that generated this result
+            
             # Store the best score for this query
             if similar_chunks:
                 best_score = max(chunk.get('similarity_score', 0) for chunk in similar_chunks)
@@ -206,21 +211,40 @@ def run_pipeline(url, query, max_pages=3, max_chunks_per_page=5):
         results['scores'] = top_results
         log_to_streamlit(f"✅ Found {len(top_results)} top results")
         
-        # Step 7: Comprehensive scoring and analysis
-        log_to_streamlit("🎯 Running comprehensive content scoring and channel analysis...")
+        # Step 7: Enhanced AI analysis with XAI and Mistral 7B
+        log_to_streamlit("🎯 Running enhanced AI analysis with XAI and Mistral 7B...")
+        
+        # First run comprehensive scoring
         comprehensive_scorer = ComprehensiveScorer()
         comprehensive_results = comprehensive_scorer.score_chunks_against_queries(chunks, all_fanout_queries)
         
-        # Generate XAI output
-        xai_output = comprehensive_scorer.format_xai_output(comprehensive_results)
-        log_to_streamlit("📊 XAI Analysis Results:")
-        for line in xai_output.split('\n'):
-            if line.strip():
-                log_to_streamlit(f"  {line}")
+        # Then run enhanced AI analysis
+        enhanced_analyzer = EnhancedAIAnalyzer()
+        enhanced_results = enhanced_analyzer.generate_comprehensive_recommendations(
+            chunks, all_fanout_queries, comprehensive_results['chunk_scores']
+        )
         
-        # Store comprehensive results
+        # Combine results
         results['comprehensive_analysis'] = comprehensive_results
-        results['xai_output'] = xai_output
+        results['enhanced_analysis'] = enhanced_results
+        
+        # Log XAI recommendations
+        if enhanced_results['xai_recommendations'].get('analysis'):
+            log_to_streamlit("📊 XAI Analysis Results:")
+            xai_analysis = enhanced_results['xai_recommendations']['analysis']
+            # Split into lines and log each line
+            for line in xai_analysis.split('\n'):
+                if line.strip():
+                    log_to_streamlit(f"  {line}")
+        
+        # Log Mistral recommendations
+        if enhanced_results['mistral_keywords'].get('analysis'):
+            log_to_streamlit("🤖 Mistral 7B Recommendations:")
+            mistral_analysis = enhanced_results['mistral_keywords']['analysis']
+            # Split into lines and log each line
+            for line in mistral_analysis.split('\n'):
+                if line.strip():
+                    log_to_streamlit(f"  {line}")
         
         # Step 8: Generate recommendations
         log_to_streamlit("💡 Generating content and channel recommendations...")
@@ -310,7 +334,14 @@ def main():
     
     # Header
     st.markdown('<h1 class="main-header">🧭 Zero-Click Compass</h1>', unsafe_allow_html=True)
-    st.markdown("Optimize your content for the zero-click world. Ensure your brand is discovered through AI overviews!")
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <h3>Optimize your content for the zero-click world. Ensure your brand is discovered through AI overviews!</h3>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     
     # Sidebar
@@ -443,72 +474,141 @@ def main():
         with tab2:
             st.markdown('<h2 class="section-header">Content Scores</h2>', unsafe_allow_html=True)
             
+            # Add context about what content scores mean
+            st.markdown("""
+            **📊 Content Scoring Analysis**
+            
+            This section shows how well your content matches the generated fan-out queries. Each piece of content is scored based on:
+            - **Semantic similarity** to the target queries
+            - **Keyword relevance** and content overlap
+            - **Content quality** and comprehensiveness
+            
+            Higher scores indicate content that better addresses user search intent.
+            """)
+            
             scores_data = []
             for result in results['scores']:
+                # Get more context about the content
+                content_text = result.get('content', '')
+                content_preview = content_text[:150] + "..." if len(content_text) > 150 else content_text
+                
+                # Get the fan-out query this score was calculated against
+                fanout_query = result.get('query', 'N/A')  # The query used for similarity calculation
+                
+                # Determine content quality indicator
+                similarity_score = result.get('similarity_score', 0)
+                if similarity_score >= 0.8:
+                    quality_indicator = "🟢 Excellent"
+                elif similarity_score >= 0.6:
+                    quality_indicator = "🟡 Good"
+                elif similarity_score >= 0.4:
+                    quality_indicator = "🟠 Fair"
+                else:
+                    quality_indicator = "🔴 Needs Improvement"
+                
                 scores_data.append({
-                    'Content': result.get('content', '')[:100] + '...',
+                    'Content Preview': content_preview,
+                    'Fan-out Query': fanout_query,
                     'URL': result.get('url', ''),
-                    'Similarity Score': f"{result.get('similarity_score', 0):.3f}",
-                    'Content Type': result.get('content_type', ''),
-                    'Tokens': result.get('tokens', 0)
+                    'Similarity Score': f"{similarity_score:.3f}",
+                    'Quality': quality_indicator,
+                    'Content Type': result.get('content_type', '')
                 })
             
             if scores_data:
                 df_scores = pd.DataFrame(scores_data)
                 st.dataframe(df_scores, use_container_width=True)
+                
+                # Add summary statistics
+                st.subheader("📈 Score Summary")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    avg_score = sum(float(row['Similarity Score']) for row in scores_data) / len(scores_data)
+                    st.metric("Average Score", f"{avg_score:.3f}")
+                
+                with col2:
+                    excellent_count = sum(1 for row in scores_data if "🟢" in row['Quality'])
+                    st.metric("Excellent Content", excellent_count)
+                
+                with col3:
+                    needs_improvement = sum(1 for row in scores_data if "🔴" in row['Quality'])
+                    st.metric("Needs Improvement", needs_improvement)
         
         with tab3:
-            st.markdown('<h2 class="section-header">🎯 XAI Analysis</h2>', unsafe_allow_html=True)
+            st.markdown('<h2 class="section-header">🎯 Enhanced AI Analysis</h2>', unsafe_allow_html=True)
             
-            if 'comprehensive_analysis' in results:
-                analysis = results['comprehensive_analysis']
+            if 'enhanced_analysis' in results:
+                enhanced = results['enhanced_analysis']
+                comprehensive = results.get('comprehensive_analysis', {})
                 
                 # Summary metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Chunks Analyzed", analysis['summary']['chunks_optimized'])
+                    st.metric("Chunks Analyzed", enhanced['summary']['total_chunks_analyzed'])
                 with col2:
-                    st.metric("Queries Analyzed", analysis['summary']['queries_analyzed'])
+                    st.metric("Queries Analyzed", enhanced['summary']['total_queries_analyzed'])
                 with col3:
-                    st.metric("Avg Chunk Score", f"{analysis['summary']['avg_chunk_score']:.3f}")
+                    st.metric("Channel Recs", enhanced['summary']['channel_recommendations_count'])
                 with col4:
-                    st.metric("Optimizations", analysis['summary']['optimization_count'])
+                    st.metric("Content Gaps", enhanced['summary']['content_gaps_count'])
                 
-                # Content gaps analysis
+                # Channel Recommendations (Cards at the top)
+                st.subheader("📱 Channel Strategy Recommendations")
+                if enhanced['channel_recommendations']:
+                    for rec in enhanced['channel_recommendations']:
+                        priority_color = "🔴" if rec['focus_level'] == 'high' else "🟡" if rec['focus_level'] == 'medium' else "🟢"
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            {priority_color} **{rec['platform']}** (Score: {rec['score']}, Focus: {rec['focus_level']})
+                            <br><small><strong>Strategy:</strong> {rec['strategy']}</small>
+                            <br><small><strong>Top Queries:</strong> {', '.join(rec['queries'][:3])}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # XAI Comprehensive Recommendations
+                st.subheader("🧠 XAI Comprehensive Analysis")
+                if enhanced['xai_recommendations'].get('analysis'):
+                    st.markdown(f'<div class="log-container">{enhanced["xai_recommendations"]["analysis"]}</div>', unsafe_allow_html=True)
+                
+                # Mistral 7B Keyword & Content Recommendations
+                st.subheader("🤖 Mistral 7B Recommendations")
+                if enhanced['mistral_keywords'].get('analysis'):
+                    st.markdown(f'<div class="log-container">{enhanced["mistral_keywords"]["analysis"]}</div>', unsafe_allow_html=True)
+                
+                # Content Gaps Analysis
                 st.subheader("📊 Content Gaps Analysis")
-                if analysis['content_gaps']['most_common_gaps']:
+                if enhanced['content_gaps']['most_common_gaps']:
                     gaps_data = []
-                    for gap, count in analysis['content_gaps']['most_common_gaps']:
+                    for gap, count in enhanced['content_gaps']['most_common_gaps']:
                         gaps_data.append({
                             'Content Gap': gap,
                             'Frequency': count,
-                            'Percentage': f"{(count / analysis['content_gaps']['total_gaps'] * 100):.1f}%"
+                            'Percentage': f"{(count / enhanced['content_gaps']['total_gaps'] * 100):.1f}%"
                         })
                     
                     df_gaps = pd.DataFrame(gaps_data)
                     st.dataframe(df_gaps, use_container_width=True)
                 
-                # Channel strategy
-                st.subheader("📱 Channel Strategy")
-                if analysis['channel_strategy']['channel_priorities']:
-                    channel_data = []
-                    for platform_info in analysis['channel_strategy']['channel_priorities']:
-                        channel_data.append({
-                            'Platform': platform_info['platform'],
-                            'Score': platform_info['score'],
-                            'Query Count': platform_info['query_count'],
-                            'Focus Level': platform_info['focus_level'],
-                            'Top Queries': ', '.join(platform_info['top_queries'][:3])
-                        })
-                    
-                    df_channels = pd.DataFrame(channel_data)
-                    st.dataframe(df_channels, use_container_width=True)
+                # Chunk-Specific Improvements
+                st.subheader("🔧 Chunk-Specific Improvements")
+                if enhanced['chunk_improvements']:
+                    for improvement in enhanced['chunk_improvements']:
+                        priority_color = "🔴" if improvement['priority'] == 'high' else "🟡" if improvement['priority'] == 'medium' else "🟢"
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            {priority_color} **Chunk: {improvement['chunk_id']}** (Score: {improvement['current_score']:.3f}, Priority: {improvement['priority']})
+                            <br><small><strong>Preview:</strong> {improvement['preview']}</small>
+                            <br><small><strong>Suggestion:</strong> {improvement['suggestion']}</small>
+                            <br><small><strong>Target Queries:</strong> {', '.join(improvement['target_queries'])}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
                 
-                # Detailed chunk analysis
-                st.subheader("🔍 Detailed Chunk Analysis")
-                if analysis['chunk_scores']:
+                # Detailed Chunk Analysis (if comprehensive analysis exists)
+                if comprehensive.get('chunk_scores'):
+                    st.subheader("🔍 Detailed Chunk Analysis")
                     chunk_data = []
-                    for chunk_score in analysis['chunk_scores']:
+                    for chunk_score in comprehensive['chunk_scores']:
                         chunk_data.append({
                             'Chunk ID': chunk_score['chunk_id'],
                             'Avg Score': f"{chunk_score['avg_relevance_score']:.3f}",
@@ -521,25 +621,8 @@ def main():
                     df_chunks = pd.DataFrame(chunk_data)
                     st.dataframe(df_chunks, use_container_width=True)
                 
-                # Optimization recommendations
-                st.subheader("💡 Optimization Recommendations")
-                if analysis['optimization_recommendations']:
-                    for rec in analysis['optimization_recommendations']:
-                        priority_color = "🔴" if rec['priority'] == 'high' else "🟡" if rec['priority'] == 'medium' else "🟢"
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            {priority_color} **{rec['title']}** ({rec['priority']} priority)
-                            <br><small>{rec['description']}</small>
-                            <br><small><strong>Actions:</strong> {', '.join(rec['action_items'])}</small>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                # XAI Output
-                st.subheader("📋 XAI Output")
-                if 'xai_output' in results:
-                    st.markdown(f'<div class="log-container">{results["xai_output"]}</div>', unsafe_allow_html=True)
             else:
-                st.info("Run the pipeline to see XAI analysis results.")
+                st.info("Run the pipeline to see enhanced AI analysis results.")
         
         with tab4:
             st.markdown('<h2 class="section-header">Recommendations</h2>', unsafe_allow_html=True)

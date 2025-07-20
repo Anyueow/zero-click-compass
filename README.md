@@ -1,196 +1,287 @@
 # 🧭 Zero-Click Compass
 
-**Essential content analysis and optimization pipeline** - Streamlined for production use.
+**Optimize your content for the zero-click world. Ensure your brand is discovered through AI overviews!**
+
+A comprehensive content analysis and optimization pipeline that helps you understand how your content performs against user queries and provides actionable recommendations for improvement.
 
 ## 🎯 What It Does
 
-Zero-Click Compass analyzes your website content and generates:
-- **Reverse queries** from your content chunks
-- **Fan-out sub-queries** for comprehensive coverage  
-- **Content relevance scores** for optimization
-- **Actionable recommendations** for content and channel strategy
+Zero-Click Compass analyzes your website content to:
+- **Generate reverse queries** from your existing content
+- **Expand queries** with AI-powered fan-out analysis
+- **Score content relevance** against target queries
+- **Identify content gaps** and optimization opportunities
+- **Provide channel-specific strategies** for 6 major platforms
+- **Deliver actionable recommendations** for content improvement
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Crawler   │───▶│  Content Chunker│───▶│  Embedding      │
+│                 │    │                 │    │  Pipeline       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Reverse Query   │    │ Query Fan-out   │    │ Comprehensive   │
+│ Generator       │    │ Generator       │    │ Scorer          │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Streamlit Dashboard                          │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│  │   Queries   │ │   Scores    │ │ XAI Analysis│ │Recommendations│ │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 🔄 Pipeline Flow
+
+### 1. Content Discovery & Processing
+```
+Website URL
+    │
+    ▼
+┌─────────────┐
+│ Web Crawler │───▶ Crawl pages (max 3 pages, 5 chunks/page)
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│   Chunker   │───▶ Semantic chunking (150 tokens, 20 overlap)
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Embeddings  │───▶ Create FAISS search index
+└─────────────┘
+```
+
+### 2. Query Generation & Expansion
+```
+Content Chunks
+    │
+    ▼
+┌─────────────┐
+│   Reverse   │───▶ Generate 2 queries per chunk
+│  Queries    │
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│   Fan-out   │───▶ Expand top queries (28+ variations)
+│  Generator  │
+└─────────────┘
+```
+
+### 3. Analysis & Scoring
+```
+Fan-out Queries
+    │
+    ▼
+┌─────────────┐
+│   Search    │───▶ Find similar content chunks
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│Comprehensive│───▶ Score chunks against queries
+│   Scorer    │
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Channel     │───▶ Platform-specific strategies
+│ Analysis    │
+└─────────────┘
+```
 
 ## 🚀 Quick Start
 
-### 1. Setup Environment
+### Prerequisites
+- Python 3.8+
+- Conda environment (MLHW)
+- Google Gemini API key
+
+### Installation
+
+1. **Clone the repository**
 ```bash
-# Clone and setup
-git clone <repository>
+git clone <repository-url>
 cd zero-click-compass
-
-# Install dependencies
-conda create -n MLHW python=3.10
-conda activate MLHW
-pip install -r requirements.txt
-
-# Set environment variables
-cp env.template .env
-# Edit .env with your GOOGLE_API_KEY
 ```
 
-### 2. Run Streamlit App
+2. **Set up environment**
+```bash
+conda activate MLHW
+pip install -r requirements.txt
+```
+
+3. **Configure API keys**
+```bash
+cp env.template .env
+# Edit .env with your Google Gemini API key
+```
+
+4. **Run the Streamlit app**
 ```bash
 streamlit run app.py
 ```
 
-### 3. Use CLI (Optional)
+5. **Access the dashboard**
+```
+http://localhost:8502
+```
+
+## 📊 Dashboard Features
+
+### 📊 Queries Tab
+- **🔄 Reverse Queries**: Queries generated from your content (2 per chunk)
+- **🏆 Top Reverse Queries**: Best queries with relevance scores
+- **🌊 Fan-out Queries**: AI-expanded query variations
+- **🌊 Top Fan-out Queries**: Highest-scoring expanded queries
+
+### 📈 Scores Tab
+- **Content Scoring Analysis**: How well content matches queries
+- **Quality Indicators**: 🟢 Excellent, 🟡 Good, 🟠 Fair, 🔴 Needs Improvement
+- **Score Summary**: Average scores and content quality breakdown
+
+### 🎯 XAI Analysis Tab
+- **Summary Metrics**: Chunks analyzed, queries analyzed, optimization count
+- **Content Gaps Analysis**: Missing content patterns
+- **Channel Strategy**: Platform-specific recommendations
+- **Detailed Chunk Analysis**: Individual scores with grades (A-F)
+- **Optimization Recommendations**: Actionable suggestions
+
+### 💡 Recommendations Tab
+- **Content Optimization**: Specific improvement suggestions
+- **Channel Strategy**: Platform-specific actions
+- **Priority Actions**: High-impact recommendations
+
+### 📝 Logs Tab
+- **Real-time Pipeline Logs**: Detailed execution tracking
+
+## 🎯 Supported Platforms
+
+The system provides channel-specific strategies for:
+
+| Platform | Focus | Content Type | Engagement Style |
+|----------|-------|--------------|------------------|
+| **Reddit** | Community participation | Detailed posts and comments | Community discussions |
+| **Twitter/X** | Conversation participation | Threads and replies | Trending conversations |
+| **Google** | SEO optimization | Comprehensive articles | Search visibility |
+| **Yelp** | Review responses | Professional engagement | Business reviews |
+| **Quora** | Expert answers | Detailed responses | Q&A platform |
+| **LinkedIn** | Professional networking | Industry insights | Business networking |
+
+## 📈 Example XAI Output
+
+```
+=== XAI Optimization Results ===
+Chunks optimized: 15
+Queries analyzed: 10
+
+Top Content Gaps:
+  • Missing expand content (mentioned in 8/15 chunks)
+  • Missing improve content (mentioned in 6/15 chunks)
+  • Missing clarify content (mentioned in 4/15 chunks)
+
+=== Channel Strategy ===
+Total queries analyzed: 10
+
+Channel Distribution:
+  GOOGLE: 6 queries
+  REDDIT: 4 queries
+  TWITTER: 3 queries
+
+Top Implementation Priorities:
+  1. GOOGLE (Score: 18, Focus: high)
+  2. REDDIT (Score: 12, Focus: medium)
+  3. TWITTER (Score: 9, Focus: medium)
+```
+
+## 🔧 Configuration
+
+### Environment Variables
 ```bash
-python -m src.cli pipeline https://example.com "your query" --max-pages 3
+# Required
+GOOGLE_API_KEY=your_google_gemini_api_key
+
+# Optional - for enhanced social media analysis
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token
 ```
 
-## 📊 What You'll See
-
-### Streamlit Interface
-- **Queries Tab**: All generated reverse queries and fan-out expansions
-- **Scores Tab**: Content relevance scores and rankings
-- **Recommendations Tab**: Content optimization and channel strategy
-- **Logs Tab**: Detailed pipeline execution logs
-
-### Key Metrics
-- Pages crawled and chunks created
-- Reverse queries generated from content
-- Fan-out queries for comprehensive coverage
-- Content relevance scores
-
-## 🔧 Core Components
-
-### Essential Files
-- `app.py` - Streamlined Streamlit interface
-- `src/cli.py` - Command-line pipeline
-- `src/crawl.py` - Web crawling with Selenium
-- `src/chunk.py` - Semantic content chunking
-- `src/embed.py` - Embedding generation and FAISS indexing
-- `src/query_generator.py` - Reverse query generation from content
-- `src/query_fanout.py` - Query expansion and fan-out
-- `src/utils.py` - Utility functions and logging
-
-### Pipeline Flow
-1. **Crawl** → Website content extraction
-2. **Chunk** → Semantic content segmentation (5 chunks/page max)
-3. **Embed** → Vector embeddings and search index
-4. **Generate** → Reverse queries from content chunks
-5. **Expand** → Fan-out query generation
-6. **Score** → Content relevance scoring
-7. **Recommend** → Optimization suggestions
-
-## ⚙️ Configuration
-
-### Streamlit Settings
-- **Max Pages**: Limit pages to crawl (default: 3)
-- **Max Chunks/Page**: Limit chunks per page (default: 5)
-- **Target Query**: Your focus search term
-
-### CLI Options
+### Pipeline Settings
 ```bash
-python -m src.cli pipeline <url> <query> \
-  --max-pages 3 \
-  --max-chunks 10 \
-  --max-reverse-queries 2 \
-  --max-fanout-per-query 3 \
-  --delay 0.5
+# Content chunking
+CHUNK_SIZE=150
+OVERLAP_TOKENS=20
+
+# Web crawling
+MAX_PAGES=3
+MAX_CHUNKS_PER_PAGE=5
+
+# Query expansion
+MAX_EXPANSIONS=15
 ```
 
-## 🎯 Use Cases
+## 🎯 Usage Examples
 
-### Content Optimization
-- Identify what queries your content answers
-- Find content gaps and opportunities
-- Optimize for high-relevance queries
+### Basic Analysis
+1. Enter website URL: `https://www.avocadogreenmattress.com`
+2. Enter target query: `organic mattress benefits`
+3. Click "Run Pipeline"
+4. Review results across all tabs
 
-### SEO Strategy
-- Discover long-tail keyword opportunities
-- Understand content performance
-- Plan content expansion
+### Advanced Analysis
+- Adjust max pages and chunks per page in sidebar
+- Explore detailed XAI analysis for comprehensive insights
+- Use channel-specific recommendations for targeted optimization
 
-### Channel Strategy
-- Determine optimal content distribution
-- Identify platform-specific opportunities
-- Plan multi-channel content
+## 📊 Performance Expectations
 
-## 📈 Performance
+- **Crawling**: 2-5 seconds per page
+- **Chunking**: 1-2 seconds for processing
+- **Embedding**: 3-5 seconds for index creation
+- **Query Generation**: 10-15 seconds for reverse queries
+- **Fan-out Expansion**: 15-20 seconds for query expansion
+- **Comprehensive Scoring**: 5-10 seconds for analysis
+- **Total Pipeline**: 1-2 minutes for complete analysis
 
-### Typical Pipeline Times
-- **Crawling**: ~10s per page
-- **Chunking**: ~0.1s
-- **Embeddings**: ~2s for 5 chunks
-- **Reverse Queries**: ~14s for 2 chunks
-- **Fan-out**: ~30s for 2 queries
-- **Total**: ~60s for complete analysis
+## 🛠️ Technical Stack
 
-### Optimizations
-- Limited chunks per page (5 max)
-- Process only top 2 chunks for reverse queries
-- Process only top 2 reverse queries for fan-out
-- Fresh data processing (no caching)
-
-## 🔍 Example Output
-
-### Generated Queries
-```
-🔄 Reverse Queries from Content:
-- "organic mattress benefits" (Score: 9.2)
-- "best organic mattress brands" (Score: 8.8)
-- "organic vs conventional mattress" (Score: 8.5)
-
-🌊 Fan-out Queries:
-- "organic mattress for back pain"
-- "certified organic mattress materials"
-- "organic mattress price comparison"
-```
-
-### Content Scores
-```
-Content: "Our organic mattresses are made from..." (Score: 0.892)
-Content: "Benefits of choosing organic..." (Score: 0.845)
-```
-
-### Recommendations
-```
-📝 Content Optimization:
-🔴 Create step-by-step guides and tutorials (high priority)
-🟡 Develop comparison content and product reviews (medium priority)
-
-📢 Channel Strategy:
-🔴 SEO: Optimize for long-tail keywords (high priority)
-🟡 Social Media: Engage with community discussions (medium priority)
-```
-
-## 🛠️ Development
-
-### Project Structure
-```
-zero-click-compass/
-├── app.py                 # Streamlit interface
-├── src/
-│   ├── cli.py            # Command-line interface
-│   ├── crawl.py          # Web crawling
-│   ├── chunk.py          # Content chunking
-│   ├── embed.py          # Embeddings and search
-│   ├── query_generator.py # Reverse query generation
-│   ├── query_fanout.py   # Query expansion
-│   └── utils.py          # Utilities
-├── data/                 # Output files
-└── requirements.txt      # Dependencies
-```
-
-### Key Features
-- **No caching**: Fresh data processing every run
-- **Detailed logging**: Full pipeline visibility
-- **Optimized performance**: Limited processing for speed
-- **Production ready**: Streamlined for real-world use
-
-## 📝 License
-
-MIT License - see LICENSE file for details.
+- **Web Crawling**: Custom crawler with BeautifulSoup
+- **Content Processing**: Semantic chunking with tiktoken
+- **Embeddings**: Google Gemini embeddings
+- **Search**: FAISS vector similarity search
+- **AI Generation**: Google Gemini for query generation
+- **Frontend**: Streamlit dashboard
+- **Analysis**: Custom comprehensive scoring engine
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Add tests if applicable
 5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For issues and questions:
+1. Check the logs tab in the Streamlit app
+2. Review the pipeline flow diagrams above
+3. Ensure all API keys are properly configured
+4. Verify the MLHW conda environment is active
 
 ---
 
-**Built for content creators and marketers who want data-driven optimization insights.** 
+**🧭 Zero-Click Compass** - Navigate the AI-powered content landscape with confidence! 
