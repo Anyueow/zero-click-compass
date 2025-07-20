@@ -144,7 +144,7 @@ class EnhancedAIAnalyzer:
         
         # Prepare prompt for Mistral
         mistral_prompt = f"""
-        Analyze these content chunks and provide specific keyword and content paragraph recommendations for better AI Overview performance.
+        Analyze these content chunks and provide user-friendly recommendations for better AI Overview performance.
 
         CONTENT CHUNKS:
         {json.dumps([{'preview': chunk.get('text', '')[:300] + "..."} for chunk in chunks[:5]], indent=2)}
@@ -152,12 +152,18 @@ class EnhancedAIAnalyzer:
         TARGET QUERIES:
         {query_texts[:5]}
 
-        Provide:
-        1. KEYWORDS: 10 specific keywords to include in content
-        2. CONTENT PARAGRAPHS: 3 sample paragraphs that would improve AIO scores
-        3. OPTIMIZATION TIPS: Specific tips for better context window performance
+        Provide recommendations in this format:
 
-        Keep recommendations practical and specific. Do not use markdown formatting.
+        KEYWORDS TO ADD:
+        List 5-8 specific keywords that would improve your content's relevance
+
+        SAMPLE CONTENT PARAGRAPHS:
+        Provide 2-3 short, engaging paragraphs (50-100 words each) that would help your content rank better
+
+        QUICK IMPROVEMENT TIPS:
+        List 3-4 specific, actionable tips for better AI Overview performance
+
+        Keep everything simple, practical, and easy to understand. Do not use markdown formatting or technical jargon.
         """
         
         try:
@@ -259,41 +265,49 @@ class EnhancedAIAnalyzer:
         for query in query_texts:
             query_lower = query.lower()
             
-            # Google/SEO
-            if any(word in query_lower for word in ['how to', 'what is', 'guide', 'tutorial']):
-                channel_analysis['GOOGLE']['queries'].append(query)
+            # Google/SEO - Most queries fit here as it's the primary search engine
+            channel_analysis['GOOGLE']['queries'].append(query)
+            channel_analysis['GOOGLE']['score'] += 1
+            
+            # Add bonus points for specific Google-friendly queries
+            if any(word in query_lower for word in ['how to', 'what is', 'guide', 'tutorial', 'best', 'compare']):
                 channel_analysis['GOOGLE']['score'] += 2
             
             # Reddit
-            if any(word in query_lower for word in ['experience', 'review', 'recommend', 'community']):
+            if any(word in query_lower for word in ['experience', 'review', 'recommend', 'community', 'opinion']):
                 channel_analysis['REDDIT']['queries'].append(query)
                 channel_analysis['REDDIT']['score'] += 2
             
             # Twitter
-            if any(word in query_lower for word in ['trending', 'opinion', 'quick tip', 'news']):
+            if any(word in query_lower for word in ['trending', 'opinion', 'quick tip', 'news', 'latest']):
                 channel_analysis['TWITTER']['queries'].append(query)
                 channel_analysis['TWITTER']['score'] += 2
             
             # Quora
-            if any(word in query_lower for word in ['what is', 'how does', 'why', 'explain']):
+            if any(word in query_lower for word in ['what is', 'how does', 'why', 'explain', 'difference']):
                 channel_analysis['QUORA']['queries'].append(query)
                 channel_analysis['QUORA']['score'] += 2
             
             # LinkedIn
-            if any(word in query_lower for word in ['industry', 'career', 'professional', 'business']):
+            if any(word in query_lower for word in ['industry', 'career', 'professional', 'business', 'strategy']):
                 channel_analysis['LINKEDIN']['queries'].append(query)
                 channel_analysis['LINKEDIN']['score'] += 2
             
             # Yelp
-            if any(word in query_lower for word in ['review', 'rating', 'service', 'business']):
+            if any(word in query_lower for word in ['review', 'rating', 'service', 'business', 'customer']):
                 channel_analysis['YELP']['queries'].append(query)
                 channel_analysis['YELP']['score'] += 2
         
-        # Generate recommendations
+        # Generate recommendations - include all platforms with at least some relevance
         recommendations = []
         for platform, data in channel_analysis.items():
-            if data['score'] > 0:
+            # Include Google even with low score as it's primary
+            if platform == 'GOOGLE' or data['score'] > 0:
                 focus_level = 'high' if data['score'] > 5 else 'medium' if data['score'] > 2 else 'low'
+                
+                # Ensure we have queries for each platform
+                if not data['queries'] and platform != 'GOOGLE':
+                    data['queries'] = query_texts[:3]  # Use top queries as fallback
                 
                 recommendations.append({
                     'platform': platform,
@@ -323,6 +337,16 @@ class EnhancedAIAnalyzer:
         """Analyze content gaps across all chunks."""
         
         all_gaps = []
+        gap_explanations = {
+            'Missing how-to content': 'Your content lacks step-by-step guides and tutorials that users search for',
+            'Missing definition content': 'Your content doesn\'t explain key terms and concepts clearly',
+            'Missing best-of content': 'Your content doesn\'t include "best" lists, recommendations, or top picks that users love',
+            'Missing comparison content': 'Your content doesn\'t compare options or help users choose between alternatives',
+            'Missing review content': 'Your content lacks detailed reviews and evaluations',
+            'Missing benefits content': 'Your content doesn\'t clearly explain the benefits and advantages',
+            'Missing problem-solving content': 'Your content doesn\'t address common problems and solutions'
+        }
+        
         for chunk in chunks:
             chunk_text = chunk.get('text', '').lower()
             
@@ -338,17 +362,47 @@ class EnhancedAIAnalyzer:
                     all_gaps.append('Missing best-of content')
                 if 'compare' in query_lower and 'compare' not in chunk_text:
                     all_gaps.append('Missing comparison content')
+                if 'review' in query_lower and 'review' not in chunk_text:
+                    all_gaps.append('Missing review content')
+                if 'benefit' in query_lower and 'benefit' not in chunk_text:
+                    all_gaps.append('Missing benefits content')
+                if 'problem' in query_lower and 'problem' not in chunk_text:
+                    all_gaps.append('Missing problem-solving content')
         
         # Count gaps
         gap_counts = {}
         for gap in all_gaps:
             gap_counts[gap] = gap_counts.get(gap, 0) + 1
         
+        # Create user-friendly gap analysis
+        user_friendly_gaps = []
+        for gap, count in sorted(gap_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+            user_friendly_gaps.append({
+                'gap_type': gap,
+                'frequency': count,
+                'percentage': f"{(count / len(all_gaps) * 100):.1f}%",
+                'explanation': gap_explanations.get(gap, 'Content gap identified'),
+                'suggestion': self._get_gap_suggestion(gap)
+            })
+        
         return {
             'total_gaps': len(all_gaps),
             'gap_distribution': gap_counts,
-            'most_common_gaps': sorted(gap_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            'most_common_gaps': user_friendly_gaps
         }
+    
+    def _get_gap_suggestion(self, gap_type: str) -> str:
+        """Get user-friendly suggestions for each gap type."""
+        suggestions = {
+            'Missing how-to content': 'Create step-by-step guides, tutorials, and instructional content',
+            'Missing definition content': 'Add clear explanations of key terms and concepts',
+            'Missing best-of content': 'Create "best" lists, top recommendations, and curated selections',
+            'Missing comparison content': 'Compare different options and help users make informed choices',
+            'Missing review content': 'Provide detailed reviews and evaluations of products/services',
+            'Missing benefits content': 'Clearly explain the advantages and benefits of your offerings',
+            'Missing problem-solving content': 'Address common problems and provide solutions'
+        }
+        return suggestions.get(gap_type, 'Add relevant content to address this gap')
     
     def _extract_keywords(self, analysis: str) -> List[str]:
         """Extract keywords from Mistral analysis."""
@@ -393,7 +447,7 @@ class EnhancedAIAnalyzer:
         """Generate summary of all recommendations."""
         return {
             'total_chunks_analyzed': len(results.get('chunk_improvements', [])),
-            'total_queries_analyzed': len(results.get('xai_recommendations', {}).get('queries_analyzed', 0)),
+            'total_queries_analyzed': results.get('xai_recommendations', {}).get('queries_analyzed', 0),
             'channel_recommendations_count': len(results.get('channel_recommendations', [])),
             'content_gaps_count': results.get('content_gaps', {}).get('total_gaps', 0),
             'keywords_generated': len(results.get('mistral_keywords', {}).get('keywords', [])),

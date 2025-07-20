@@ -566,60 +566,23 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # XAI Comprehensive Recommendations
-                st.subheader("🧠 XAI Comprehensive Analysis")
-                if enhanced['xai_recommendations'].get('analysis'):
-                    st.markdown(f'<div class="log-container">{enhanced["xai_recommendations"]["analysis"]}</div>', unsafe_allow_html=True)
-                
-                # Mistral 7B Keyword & Content Recommendations
-                st.subheader("🤖 Mistral 7B Recommendations")
-                if enhanced['mistral_keywords'].get('analysis'):
-                    st.markdown(f'<div class="log-container">{enhanced["mistral_keywords"]["analysis"]}</div>', unsafe_allow_html=True)
-                
-                # Content Gaps Analysis
+                # Content Gaps Analysis (User-Friendly)
                 st.subheader("📊 Content Gaps Analysis")
                 if enhanced['content_gaps']['most_common_gaps']:
-                    gaps_data = []
-                    for gap, count in enhanced['content_gaps']['most_common_gaps']:
-                        gaps_data.append({
-                            'Content Gap': gap,
-                            'Frequency': count,
-                            'Percentage': f"{(count / enhanced['content_gaps']['total_gaps'] * 100):.1f}%"
-                        })
-                    
-                    df_gaps = pd.DataFrame(gaps_data)
-                    st.dataframe(df_gaps, use_container_width=True)
-                
-                # Chunk-Specific Improvements
-                st.subheader("🔧 Chunk-Specific Improvements")
-                if enhanced['chunk_improvements']:
-                    for improvement in enhanced['chunk_improvements']:
-                        priority_color = "🔴" if improvement['priority'] == 'high' else "🟡" if improvement['priority'] == 'medium' else "🟢"
+                    for gap_info in enhanced['content_gaps']['most_common_gaps']:
+                        priority_color = "🔴" if gap_info['frequency'] > 20 else "🟡" if gap_info['frequency'] > 10 else "🟢"
                         st.markdown(f"""
                         <div class="metric-card">
-                            {priority_color} **Chunk: {improvement['chunk_id']}** (Score: {improvement['current_score']:.3f}, Priority: {improvement['priority']})
-                            <br><small><strong>Preview:</strong> {improvement['preview']}</small>
-                            <br><small><strong>Suggestion:</strong> {improvement['suggestion']}</small>
-                            <br><small><strong>Target Queries:</strong> {', '.join(improvement['target_queries'])}</small>
+                            {priority_color} **{gap_info['gap_type']}** (Found in {gap_info['frequency']} chunks - {gap_info['percentage']})
+                            <br><small><strong>What this means:</strong> {gap_info['explanation']}</small>
+                            <br><small><strong>How to fix:</strong> {gap_info['suggestion']}</small>
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # Detailed Chunk Analysis (if comprehensive analysis exists)
-                if comprehensive.get('chunk_scores'):
-                    st.subheader("🔍 Detailed Chunk Analysis")
-                    chunk_data = []
-                    for chunk_score in comprehensive['chunk_scores']:
-                        chunk_data.append({
-                            'Chunk ID': chunk_score['chunk_id'],
-                            'Avg Score': f"{chunk_score['avg_relevance_score']:.3f}",
-                            'Max Score': f"{chunk_score['max_relevance_score']:.3f}",
-                            'Grade': chunk_score['overall_grade'],
-                            'Priority': chunk_score['priority_level'],
-                            'Preview': chunk_score['text_preview'][:100] + "..."
-                        })
-                    
-                    df_chunks = pd.DataFrame(chunk_data)
-                    st.dataframe(df_chunks, use_container_width=True)
+                # Mistral 7B Keyword & Content Recommendations
+                st.subheader("🤖 AI Content Recommendations")
+                if enhanced['mistral_keywords'].get('analysis'):
+                    st.markdown(f'<div class="log-container">{enhanced["mistral_keywords"]["analysis"]}</div>', unsafe_allow_html=True)
                 
             else:
                 st.info("Run the pipeline to see enhanced AI analysis results.")
