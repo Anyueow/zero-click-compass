@@ -284,24 +284,36 @@ def analysis_tab():
         st.metric("Total Chunks", len(chunks))
     
     with col2:
-        avg_tokens = sum(chunk.get('tokens', 0) for chunk in chunks) / len(chunks)
-        st.metric("Avg Tokens per Chunk", f"{avg_tokens:.1f}")
+        try:
+            avg_tokens = sum(chunk.get('tokens', 0) for chunk in chunks) / len(chunks)
+            st.metric("Avg Tokens per Chunk", f"{avg_tokens:.1f}")
+        except:
+            st.metric("Avg Tokens per Chunk", "N/A")
     
     with col3:
-        unique_urls = len(set(chunk.get('url', '') for chunk in chunks))
-        st.metric("Unique URLs", unique_urls)
+        try:
+            unique_urls = len(set(chunk.get('url', '') for chunk in chunks))
+            st.metric("Unique URLs", unique_urls)
+        except:
+            st.metric("Unique URLs", "N/A")
     
     with col4:
-        content_types = set(chunk.get('content_type', 'text') for chunk in chunks)
-        st.metric("Content Types", len(content_types))
+        try:
+            content_types = set(chunk.get('content_type', 'text') for chunk in chunks)
+            st.metric("Content Types", len(content_types))
+        except:
+            st.metric("Content Types", "N/A")
     
     # Token distribution
     st.subheader("📈 Token Distribution")
     token_counts = [chunk.get('tokens', 0) for chunk in chunks]
     
-    fig = px.histogram(x=token_counts, nbins=20, title="Chunk Token Distribution")
-    fig.update_layout(xaxis_title="Tokens", yaxis_title="Count")
-    st.plotly_chart(fig, use_container_width=True)
+    if token_counts and any(token_counts):
+        fig = px.histogram(x=token_counts, nbins=20, title="Chunk Token Distribution")
+        fig.update_layout(xaxis_title="Tokens", yaxis_title="Count")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No token data available")
     
     # URL distribution
     st.subheader("🌐 URL Distribution")
@@ -313,9 +325,13 @@ def analysis_tab():
     url_df = pd.DataFrame(list(url_counts.items()), columns=['URL', 'Chunk Count'])
     url_df = url_df.sort_values('Chunk Count', ascending=False).head(10)
     
-    fig = px.bar(url_df, x='URL', y='Chunk Count', title="Top URLs by Chunk Count")
-    fig.update_xaxis(tickangle=45)
-    st.plotly_chart(fig, use_container_width=True)
+    if not url_df.empty:
+        fig = px.bar(url_df, x='URL', y='Chunk Count', title="Top URLs by Chunk Count")
+        if hasattr(fig, 'update_xaxis'):
+            fig.update_xaxis(tickangle=45)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No URL data available")
     
     # Content type distribution
     st.subheader("📝 Content Type Distribution")
@@ -326,8 +342,11 @@ def analysis_tab():
     
     content_df = pd.DataFrame(list(content_type_counts.items()), columns=['Content Type', 'Count'])
     
-    fig = px.pie(content_df, values='Count', names='Content Type', title="Content Type Distribution")
-    st.plotly_chart(fig, use_container_width=True)
+    if not content_df.empty:
+        fig = px.pie(content_df, values='Count', names='Content Type', title="Content Type Distribution")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No content type data available")
 
 def search_tab(top_k):
     """Search tab for querying existing index."""
@@ -437,8 +456,11 @@ def display_social_results(social_data, analysis):
     
     if platform_data:
         df = pd.DataFrame(platform_data)
-        fig = px.bar(df, x='Platform', y='Count', title="Content by Platform")
-        st.plotly_chart(fig, use_container_width=True)
+        if not df.empty:
+            fig = px.bar(df, x='Platform', y='Count', title="Content by Platform")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No platform data available")
     
     # Platform-specific content
     for platform, data in social_data['platforms'].items():
@@ -496,10 +518,14 @@ def display_social_results(social_data, analysis):
                 })
             
             df = pd.DataFrame(influencer_data)
-            fig = px.bar(df, x='Username', y='Engagement', color='Platform', 
-                        title="Top Influencers by Engagement")
-            fig.update_xaxis(tickangle=45)
-            st.plotly_chart(fig, use_container_width=True)
+            if not df.empty:
+                fig = px.bar(df, x='Username', y='Engagement', color='Platform', 
+                            title="Top Influencers by Engagement")
+                if hasattr(fig, 'update_xaxis'):
+                    fig.update_xaxis(tickangle=45)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No influencer data available")
 
 if __name__ == "__main__":
     main() 
